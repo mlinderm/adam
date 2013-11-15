@@ -21,7 +21,7 @@ import edu.berkeley.cs.amplab.adam.algorithms.realignmenttarget.{RealignmentTarg
 import spark.{Logging, RDD}
 import spark.broadcast.Broadcast
 import scala.collection.immutable.TreeSet
-
+import edu.berkeley.cs.amplab.adam.util.ImplicitJavaConversions
 import scala.annotation.tailrec
 
 private[rdd] object RealignIndels {
@@ -36,6 +36,7 @@ private[rdd] class RealignIndels extends Serializable with Logging {
 
   val maxIndelSize = 3000
   val maxConcensusNumber = 30
+  val lodThreshold = 5
 
   @tailrec def mapToTarget (read: ADAMRecord,
 			    targets: TreeSet[IndelRealignmentTarget]): IndelRealignmentTarget = {
@@ -63,19 +64,59 @@ private[rdd] class RealignIndels extends Serializable with Logging {
     if (target.isEmpty) {
       reads
     } else {
+
+      var mismatchSum = 0L
+
+      val realignedReads 
       reads
     }
+  }
+
+  def sumMismatchQuality (read: ADAMRecord): Int = {
+    
+    var referencePos = record.getStart
+    var readPos = 0
+
+    val cigar = read.samtoolsCigar
+    val mdTag = MdTag(record.getMismatchingPositions.toString, referencePos)
+
+    var mismatchQual = 0
+
+    cigar.getCigarElements.foreach(cigarElement =>
+      cigarElement.getOperator match {
+	case CigarOperator.M =>
+	  if (!mdTag.isMatch(referencePos)) {
+	    mismatchQual += read.phredQuals (readPos)
+	  }
+
+	  readPos += 1
+	  referencePos += 1
+	case _ =>
+	  if (cigarElement.getOperator.consumesReadBases()) {
+            readPos += cigarElement.getLength
+          }
+          if (cigarElement.getOperator.consumesReferenceBases()) {
+            referencePos += cigarElement.getLength
+          }
+      })
+  }
+
+  def getReference (reads: Seq[ADAMRecord]): String = {
   }
 
   def realignIndels (rdd: RDD[ADAMRecord]): RDD[ADAMRecord] = {
 
     // find realignment targets
+    log.info("Generating realignment targets...")
     val targets = RealignmentTargetFinder(rdd)
 
     // group reads by target
+    log.info("Grouping reads by target...")
     val broadcastTargets = rdd.context.broadcast(targets)
     val readsMappedToTarget = rdd.groupBy (mapToTarget(_, broadcastTargets.value))
 
+    // realign target groups
+    log.info("Sorting reads by reference in ADAM RDD")
     readsMappedToTarget.flatMap(realignTargetGroup)
   }
 
