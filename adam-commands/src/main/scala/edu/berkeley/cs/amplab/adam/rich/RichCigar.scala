@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package edu.berkeley.cs.amplab.adam.utils
+package edu.berkeley.cs.amplab.adam.rich
 
 import net.sf.samtools.{Cigar, CigarOperator, TextCigarCodec, CigarElement}
-import edu.berkeley.cs.amplab.adam.util.ImplicitJavaConversions
+import edu.berkeley.cs.amplab.adam.util.ImplicitJavaConversions._
 import scala.annotation.tailrec
 
 object RichCigar {
@@ -44,14 +44,15 @@ class RichCigar (cigar: Cigar) {
   }
 
   def moveLeft (index: Int): Cigar = {
-    var elements = List[CigarElement](numElements)
+    var elements = List[CigarElement]()
 
-    @tailrec def moveCigarLeft (index: Int, cigarElements: List[CigarElement]): List[CigarElement] = {
+    // TODO: should be TCR
+    def moveCigarLeft (index: Int, cigarElements: List[CigarElement]): List[CigarElement] = {
       if (index == 0) {
 	val elemMovedLeft = new CigarElement (cigarElements.head.getLength - 1, cigarElements.head.getOperator)
-	val elemPadded = Option(list.tail.head) match {
-	  case Some(o) => new CigarElement(o.getLength + 1, o.getOperator) :: list.tail.tail
-	  case None => List (new CigarElement(1, CigarOperator.M))
+	val elemPadded = Option(cigarElements.tail.head) match {
+	  case Some(o:CigarElement) => new CigarElement(o.getLength + 1, o.getOperator) :: cigarElements.tail.tail
+	  case _ => List (new CigarElement(1, CigarOperator.M))
 	}
 	
 	elemMovedLeft :: elemPadded
@@ -61,6 +62,14 @@ class RichCigar (cigar: Cigar) {
     }
 
     new Cigar(moveCigarLeft (index, elements))
+  }
+
+  def getLength (): Int = {
+    cigar.getCigarElements.map(_.getLength).reduce(_ + _)
+  }
+
+  def isWellFormed (readLength: Int): Boolean = {
+    readLength == getLength
   }
 
 }

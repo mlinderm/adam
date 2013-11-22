@@ -17,6 +17,11 @@ package edu.berkeley.cs.amplab.adam.util
 
 import scala.collection.immutable.NumericRange
 import scala.util.matching.Regex
+import net.sf.samtools.{Cigar, CigarOperator, CigarElement}
+import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
+import edu.berkeley.cs.amplab.adam.util.ImplicitJavaConversions._
+import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord
+import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord._
 
 object MdTagEvent extends Enumeration {
   val Match, Mismatch, Delete = Value
@@ -34,6 +39,17 @@ object MdTag {
   def apply(mdTag: String): MdTag = {
     apply(mdTag, 0L)
   }
+
+  def apply(mdTag: CharSequence, start: Long): MdTag = apply(mdTag.asInstanceOf[String], start)
+
+  def apply(read: ADAMRecord, newCigar: Cigar): MdTag = {
+    val md = new MdTag(read.getMismatchingPositions, read.getStart)
+      
+    md.moveAlignment(read, newCigar)
+    
+    md
+  }
+
 }
 
 class MdTag(mdTagInput: String, referenceStart: Long) {
@@ -106,6 +122,109 @@ class MdTag(mdTagInput: String, referenceStart: Long) {
 
   def deletedBase(pos: Long): Option[Char] = {
     deletes.get(pos)
+  }
+  
+  def hasMismatches(): Boolean = {
+    !mismatches.isEmpty
+  }
+
+  def getReference (read: ADAMRecord): String = {
+    getReference (read.getSequence, read.samtoolsCigar, read.getStart)
+  }
+
+  def getReference (readSequence: String, cigar: Cigar, referenceFrom: Long): String = {
+
+    var referencePos = referenceFrom
+    var readPos = 0
+    var reference = ""
+    
+    cigar.getCigarElements.foreach(cigarElement => {
+      cigarElement.getOperator match {
+	case CigarOperator.M => {
+	  for (i <- (0 until cigarElement.getLength)) {
+	    if (mismatches.contains(referencePos)) {
+	      reference += mismatches.get(referencePos)
+	    } else {
+	      reference += readSequence(readPos)
+	    }
+
+	    readPos += 1
+	    referencePos += 1
+	  }
+	}
+	case CigarOperator.D => {
+	  for (i <- (0 until cigarElement.getLength)) {
+	    reference += deletes.get(referencePos)
+	    
+	    referencePos += 1
+	  }
+	}
+	case _ => {
+	  if (cigarElement.getOperator.consumesReadBases) {
+	    readPos += cigarElement.getLength
+	  }
+	  if (cigarElement.getOperator.consumesReferenceBases) {
+	    throw new IllegalArgumentException ("Cannot handle operator: " + cigarElement.getOperator)
+	  }
+	}
+      }
+    })
+
+    reference
+  }
+
+  def moveAlignment (read: ADAMRecord, newCigar: Cigar) {
+    
+    val reference = getReference(read)
+    var referencePos = 0
+    var readPos = 0
+    var sequence = read.getSequence
+
+    deletes = deletes.empty
+    mismatches = mismatches.empty
+    matches = List[NumericRange[Long]]()
+
+    newCigar.getCigarElements.foreach(cigarElement => {
+      cigarElement.getOperator match {
+	case CigarOperator.M => {
+	  var rangeStart = 0L
+	  var rangeEnd = 0L
+
+	  for (i <- 0 until cigarElement.getLength) {
+	    if (reference(referencePos) == sequence(readPos)) {
+	      rangeEnd = i.toLong
+	    } else {
+	      if (i != 0) {
+		matches = ((rangeStart + read.getStart) to (rangeEnd + read.getStart)) :: matches
+	      }
+
+	      rangeStart = (i + 1).toLong
+	    
+	      mismatches += ((referencePos + read.getStart) -> reference(referencePos))
+	    }
+
+	    readPos += 1
+	    referencePos += 1
+	  }
+	}
+	case CigarOperator.D => {
+	  for (i <- 0 until cigarElement.getLength) {
+	    deletes += ((referencePos + read.getStart) -> reference(referencePos))
+	    
+	    referencePos += 1
+	  }
+	}
+	case _ => {
+	  if (cigarElement.getOperator.consumesReadBases) {
+	    readPos += cigarElement.getLength
+	  }
+	  if (cigarElement.getOperator.consumesReferenceBases) {
+	    throw new IllegalArgumentException ("Cannot handle operator: " + cigarElement.getOperator)
+	  }
+	}
+      }
+    })    
+    
   }
 
 }

@@ -33,7 +33,7 @@ object RealignmentTargetFinder {
 
 class RealignmentTargetFinder extends Serializable {
 
-  @tailrec protected def joinTargets (
+  @tailrec protected final def joinTargets (
     first: TreeSet[IndelRealignmentTarget], 
     second: TreeSet[IndelRealignmentTarget]): TreeSet[IndelRealignmentTarget] = {
     

@@ -16,7 +16,7 @@
 
 package edu.berkeley.cs.amplab.adam.algorithms.smithwaterman
 
-class SmithWatermanGapScoringFromFn (xSequence: String,
+abstract class SmithWatermanGapScoringFromFn (xSequence: String,
 				     ySequence: String,
 				     scoreFn: (Int, Int, Char, Char) => Double)
     extends SmithWaterman (xSequence, ySequence) {
@@ -60,8 +60,6 @@ class SmithWatermanGapScoringFromFn (xSequence: String,
 
     matrix
   }
-  
-  protected def trackBack ()
 
 }
     

@@ -17,8 +17,8 @@
 package edu.berkeley.cs.amplab.adam.algorithms.realignmenttarget
 
 import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup,ADAMRecord}
-import edu.berkeley.cs.amplab.adam.rich.RichAdamRecord
-import edu.berkeley.cs.amplab.adam.rich.RichAdamRecord._
+import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord
+import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord._
 import scala.collection.immutable.{HashSet, NumericRange}
 
 object TargetOrdering extends Ordering[IndelRealignmentTarget] {
@@ -27,7 +27,7 @@ object TargetOrdering extends Ordering[IndelRealignmentTarget] {
   def lt (target: IndelRealignmentTarget, read: ADAMRecord): Boolean = target.getReadRange.start < read.getStart
 
   def equals (target: IndelRealignmentTarget, read: ADAMRecord): Boolean = {
-    (target.getReadRange.start == read.getStart) && (target.getReadRange.end == read.end)
+    (target.getReadRange.start == read.getStart) && (target.getReadRange.end == read.end.get)
   }
 
   def overlap (a: IndelRealignmentTarget, b: IndelRealignmentTarget) : Boolean = {

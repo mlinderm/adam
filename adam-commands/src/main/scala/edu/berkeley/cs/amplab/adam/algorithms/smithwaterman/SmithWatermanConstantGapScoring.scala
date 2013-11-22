@@ -16,15 +16,9 @@
 
 package edu.berkeley.cs.amplab.adam.algorithms.smithwaterman
 
-class SmithWatermanConstantGapScoring (xSequence: String,
-				       ySequence: String,
-				       wMatch: Double,
-				       wMismatch: Double,
-				       wInsert: Double,
-				       wDelete: Double)
-    extends SmithWatermanGapScoringFromFn (xSequence, ySequence, constantGapFn) {
+object SmithWatermanConstantGapScoring {
 
-  protected def constantGapFn (x: Int, y: Int, i: Char, j: Char): Double = {
+  protected def constantGapFn (wMatch: Double, wDelete: Double, wInsert: Double, wMismatch: Double)(x: Int, y: Int, i: Char, j: Char): Double = {
     if (x == y) {
       wMatch
     } else if (x == '_') {
@@ -35,4 +29,14 @@ class SmithWatermanConstantGapScoring (xSequence: String,
       wMismatch
     }
   }
+  
+}
+
+abstract class SmithWatermanConstantGapScoring (xSequence: String,
+				       ySequence: String,
+				       wMatch: Double,
+				       wMismatch: Double,
+				       wInsert: Double,
+				       wDelete: Double)
+    extends SmithWatermanGapScoringFromFn (xSequence, ySequence, SmithWatermanConstantGapScoring.constantGapFn(wMatch,wMismatch,wInsert,wDelete)) {
 }
