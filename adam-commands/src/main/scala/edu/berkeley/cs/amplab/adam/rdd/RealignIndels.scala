@@ -16,9 +16,11 @@
 
 package edu.berkeley.cs.amplab.adam.rdd
 
+import org.apache.spark.rdd.RDD
+import org.apache.spark.SparkContext._
+import org.apache.spark.Logging
 import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
 import edu.berkeley.cs.amplab.adam.algorithms.realignmenttarget.{RealignmentTargetFinder,IndelRealignmentTarget,TargetOrdering}
-import spark.{Logging, RDD}
 import spark.broadcast.Broadcast
 import scala.collection.immutable.TreeSet
 import edu.berkeley.cs.amplab.adam.util.ImplicitJavaConversions
