@@ -32,7 +32,7 @@ object MdTag {
   val digitPattern = new Regex("\\d+")
   val basesPattern = new Regex("[AGCTN]+")
 
-  def apply(mdTag: String, referenceStart: Long): MdTag = {
+  private def apply(mdTag: String, referenceStart: Long): MdTag = {
     new MdTag(mdTag, referenceStart)
   }
 

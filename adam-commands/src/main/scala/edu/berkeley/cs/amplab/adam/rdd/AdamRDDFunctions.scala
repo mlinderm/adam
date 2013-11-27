@@ -93,7 +93,7 @@ class AdamRecordRDDFunctions(rdd: RDD[ADAMRecord]) extends Serializable with Log
     RecalibrateBaseQualities(rdd, broadcastDbSNP)
   }
 
-  def realignIndels(): RDD[ADAMRecord] = {
+  def adamRealignIndels(): RDD[ADAMRecord] = {
     RealignIndels(rdd)
   }
 

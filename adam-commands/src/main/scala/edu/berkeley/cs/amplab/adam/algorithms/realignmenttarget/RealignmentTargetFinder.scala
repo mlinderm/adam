@@ -16,8 +16,9 @@
  
 package edu.berkeley.cs.amplab.adam.algorithms.realignmenttarget
 
-import spark.RDD
-import spark.SparkContext._
+import org.apache.spark.rdd.RDD
+import org.apache.spark.SparkContext._
+import org.apache.spark.Logging
 import edu.berkeley.cs.amplab.adam.avro.{ADAMRecord,ADAMPileup}
 import edu.berkeley.cs.amplab.adam.commands.Read2PileupProcessor
 import scala.annotation.tailrec

@@ -21,7 +21,7 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.Logging
 import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
 import edu.berkeley.cs.amplab.adam.algorithms.realignmenttarget.{RealignmentTargetFinder,IndelRealignmentTarget,TargetOrdering}
-import spark.broadcast.Broadcast
+import org.apache.spark.broadcast.Broadcast
 import scala.collection.immutable.TreeSet
 import edu.berkeley.cs.amplab.adam.util.ImplicitJavaConversions
 import scala.annotation.tailrec
@@ -116,7 +116,7 @@ private[rdd] class RealignIndels extends Serializable with Logging {
           val consensusSequence = c.insertIntoReference(reference, refStart, refEnd)
 
           val sweptValues = readsToClean.map(r => {
-            val (qual, pos) = sweepReadOverReferenceForQuality(r.getSequence, reference, r.phredQuals)
+            val (qual, pos) = sweepReadOverReferenceForQuality(r.getSequence, reference, r.qualityScores.map(_.toInt))
             val originalQual = sumMismatchQuality(r)
             
             if (qual < originalQual) {
@@ -269,7 +269,7 @@ private[rdd] class RealignIndels extends Serializable with Logging {
   }
 
   def sumMismatchQuality (read: ADAMRecord): Int = {
-    sumMismatchQuality (read.samtoolsCigar, read.mdTag, read.getStart, read.phredQuals)
+    sumMismatchQuality (read.samtoolsCigar, read.mdTag, read.getStart, read.qualityScores.map(_.toInt))
   }
 
   def sumMismatchQuality (cigar: Cigar, mdTag: MdTag, start: Long, phredQuals: Seq[Int]): Int = {
