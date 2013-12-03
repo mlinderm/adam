@@ -25,31 +25,56 @@ import scala.collection.immutable.TreeSet
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 
 object RealignmentTargetFinder {
-  
+
+  /**
+   * Generates realignment targets from a set of reads.
+   *
+   * @param rdd RDD of reads to use in generating realignment targets.
+   * @return Sorted set of realignment targets.
+   */
   def apply(rdd: RDD[ADAMRecord]): TreeSet[IndelRealignmentTarget] = {
     new RealignmentTargetFinder().findTargets (rdd)
   }
-  
 }
 
 class RealignmentTargetFinder extends Serializable {
 
+  /**
+   * Joins two sorted sets of targets together. Is tail call recursive.
+   *
+   * @param first A sorted set of realignment targets. This set must be ordered ahead of the second set.
+   * @param second A sorted set of realignment targets.
+   * @return A merged set of targets.
+   */
   @tailrec protected final def joinTargets (
     first: TreeSet[IndelRealignmentTarget], 
     second: TreeSet[IndelRealignmentTarget]): TreeSet[IndelRealignmentTarget] = {
     
+    // if the two sets overlap, we must merge their head and tail elements, else we can just blindly append
     if (!TargetOrdering.overlap(first.last, second.head)) {
       first.union(second)
     } else {
+      // merge the tail of the first set and the head of the second set and retry the merge
       joinTargets (first - first.last + first.last.merge(second.head), second - second.head)
     }
   }
 
+  /**
+   * Finds indel targets over a set of reads.
+   *
+   * @param reads An RDD containing reads to generate indel realignment targets from.
+   * @return An ordered set of indel realignment targets.
+   */
   def findTargets (reads: RDD[ADAMRecord]) : TreeSet[IndelRealignmentTarget] = {
 
+    // generate pileups from reads
     val rods: RDD[Seq[ADAMPileup]] = reads.adamRecords2Pileup()
       .groupBy(_.getPosition).map(_._2)
 
+    /* for each rod, generate an indel realignment target. we then filter out all "empty" targets: these
+     * are targets which do not show snp/indel evidence. we order these targets by reference position, and
+     * merge targets who have overlapping positions
+     */
     val targetSet = rods.map(IndelRealignmentTarget(_))
       .filter(!_.isEmpty)
       .keyBy(_.getReadRange.start)

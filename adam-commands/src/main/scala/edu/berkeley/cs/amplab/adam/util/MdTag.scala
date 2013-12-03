@@ -128,20 +128,37 @@ class MdTag(mdTagInput: String, referenceStart: Long) {
     !mismatches.isEmpty
   }
 
+  /**
+   * Given a read, returns the reference.
+   *
+   * @param read A read for which one desires the reference sequence.
+   * @return A string corresponding to the reference overlapping this read.
+   */
   def getReference (read: ADAMRecord): String = {
     getReference (read.getSequence, read.samtoolsCigar, read.getStart)
   }
 
+  /**
+   * Given a read sequence, cigar, and a reference start position, returns the reference.
+   *
+   * @param readSequence The base sequence of the read.
+   * @param cigar The cigar for the read.
+   * @param referenceFrom The starting point of this read alignment vs. the reference.
+   * @return A string corresponding to the reference overlapping this read.
+   */
   def getReference (readSequence: String, cigar: Cigar, referenceFrom: Long): String = {
 
     var referencePos = referenceFrom
     var readPos = 0
     var reference = ""
     
+    // loop over all cigar elements
     cigar.getCigarElements.foreach(cigarElement => {
       cigarElement.getOperator match {
 	case CigarOperator.M => {
+          // if we are a match, loop over bases in element
 	  for (i <- (0 until cigarElement.getLength)) {
+            // if a mismatch, get from the mismatch set, else pull from read
 	    if (mismatches.contains(referencePos)) {
 	      reference += mismatches.get(referencePos)
 	    } else {
@@ -153,6 +170,7 @@ class MdTag(mdTagInput: String, referenceStart: Long) {
 	  }
 	}
 	case CigarOperator.D => {
+          // if a delete, get from the delete pool
 	  for (i <- (0 until cigarElement.getLength)) {
 	    reference += deletes.get(referencePos)
 	    
@@ -160,6 +178,7 @@ class MdTag(mdTagInput: String, referenceStart: Long) {
 	  }
 	}
 	case _ => {
+          // ignore inserts
 	  if (cigarElement.getOperator.consumesReadBases) {
 	    readPos += cigarElement.getLength
 	  }
@@ -173,6 +192,12 @@ class MdTag(mdTagInput: String, referenceStart: Long) {
     reference
   }
 
+  /**
+   * Given a single read and an updated cigar element, recalculates the MDTag.
+   *
+   * @param read Record for current alignment.
+   * @param newCigar Realigned cigar string.
+   */
   def moveAlignment (read: ADAMRecord, newCigar: Cigar) {
     
     val reference = getReference(read)
@@ -180,16 +205,19 @@ class MdTag(mdTagInput: String, referenceStart: Long) {
     var readPos = 0
     var sequence = read.getSequence
 
+    // clear out internal sets
     deletes = deletes.empty
     mismatches = mismatches.empty
     matches = List[NumericRange[Long]]()
 
+    // loop over cigar elements and refill sets
     newCigar.getCigarElements.foreach(cigarElement => {
       cigarElement.getOperator match {
 	case CigarOperator.M => {
 	  var rangeStart = 0L
 	  var rangeEnd = 0L
 
+          // dirty dancing to recalculate match sets
 	  for (i <- 0 until cigarElement.getLength) {
 	    if (reference(referencePos) == sequence(readPos)) {
 	      rangeEnd = i.toLong
@@ -224,7 +252,7 @@ class MdTag(mdTagInput: String, referenceStart: Long) {
 	}
       }
     })    
-    
+    // TODO: generate new MD string from updated MD tag.
   }
 
 }
