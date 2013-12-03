@@ -20,9 +20,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
 import org.apache.spark.Logging
 import edu.berkeley.cs.amplab.adam.avro.{ADAMRecord,ADAMPileup}
-import edu.berkeley.cs.amplab.adam.commands.Read2PileupProcessor
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeSet
+import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 
 object RealignmentTargetFinder {
   
@@ -47,9 +47,7 @@ class RealignmentTargetFinder extends Serializable {
 
   def findTargets (reads: RDD[ADAMRecord]) : TreeSet[IndelRealignmentTarget] = {
 
-    val processor = new Read2PileupProcessor
-
-    val rods: RDD[Seq[ADAMPileup]] = reads.flatMap(processor.readToPileups(_))
+    val rods: RDD[Seq[ADAMPileup]] = reads.adamRecords2Pileup()
       .groupBy(_.getPosition).map(_._2)
 
     val targetSet = rods.map(IndelRealignmentTarget(_))
