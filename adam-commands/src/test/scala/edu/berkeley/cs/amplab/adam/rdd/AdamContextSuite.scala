@@ -21,7 +21,6 @@ class AdamContextSuite extends SparkFunSuite {
   sparkTest("can generate small pileup from bam file file") {
     val path = ClassLoader.getSystemClassLoader.getResource("small_realignment_targets.bam").getFile
     val reads : RDD[ADAMRecord] = sc.adamLoad[ADAMRecord, UnboundRecordFilter](path)
-    Console.println(reads.count())
     Console.println("read reads, creating pileup")
     val pileup: RDD[ADAMPileup] = reads.adamRecords2Pileup()
       .keyBy(_.getPosition)
