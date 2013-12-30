@@ -18,15 +18,8 @@ package edu.berkeley.cs.amplab.adam.cli
 
 import java.lang.{Integer => JInt}
 import org.kohsuke.args4j.{Argument, Option => Args4jOption}
-import org.apache.spark.rdd.RDD
 import org.apache.spark.{Logging, SparkContext}
-import org.apache.spark.SparkContext._
-import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
-import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.io.LongWritable
-import fi.tkk.ics.hadoop.bam.{VariantContextWritable, VCFOutputFormat, VCFFormat}
-import edu.berkeley.cs.amplab.adam.converters.VariantContextConverter
 
 object Adam2Vcf extends AdamCommandCompanion {
 
@@ -50,33 +43,5 @@ class Adam2Vcf(val args: Adam2VcfArgs) extends AdamSparkCommand[Adam2VcfArgs] wi
 
   def run(sc: SparkContext, job: Job) {
 
-    val adamVC: RDD[ADAMVariantContext] = sc.adamVariantContextLoad(args.adamFile)
-
-    val converter = new VariantContextConverter
-
-    // convert all variant contexts
-    val variantContexts: RDD[VariantContextWritable] = adamVC.map(r => {
-      // create new variant context writable
-      val vcw = new VariantContextWritable
-      val vc = converter.convert(r)
-      vcw.set(vc)
-
-      vcw
-    })
-
-    // add index for writing output format
-    val mapIndex = variantContexts.keyBy(r => new LongWritable(r.get.getStart))
-
-    log.info("Counted " + variantContexts.count + " variants.")
-
-    // new context
-    val conf = sc.hadoopConfiguration
-    val vcfFormat = VCFFormat.valueOf("VCF")
-    conf.set(VCFOutputFormat.OUTPUT_VCF_FORMAT_PROPERTY,
-      vcfFormat.toString)
-
-    // write out
-    mapIndex.saveAsNewAPIHadoopFile(args.outputPath, classOf[LongWritable], classOf[VariantContextWritable],
-      classOf[VCFOutputFormat[LongWritable]])
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013. Regents of the University of California
+ * Copyright (c) 2013. Mount Sinai School of Medicine
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-package edu.berkeley.cs.amplab.adam.rdd
+package edu.berkeley.cs.amplab.adam.rdd.variant
 
-import edu.berkeley.cs.amplab.adam.util.SparkFunSuite
+import org.apache.spark.{SparkContext, Logging}
 
-class ADAMVariantContextSuite extends SparkFunSuite {
+object VariantContext {
 
+}
+
+class VariantContext(sc: SparkContext) extends Serializable with Logging {
 
 }

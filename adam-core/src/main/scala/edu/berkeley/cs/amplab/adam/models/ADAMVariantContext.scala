@@ -15,68 +15,11 @@
  */
 package edu.berkeley.cs.amplab.adam.models
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMGenotype, ADAMVariantDomain}
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd.RDD
+import edu.berkeley.cs.amplab.adam.avro.ADAMVariant
 
 object ADAMVariantContext {
 
-  /**
-   * Merges RDDs containing ADAMVariant, ADAMGenotype, and ADAMVariantDomain records. Variant domain
-   * records are an optional variant site annotation and are omitted by default. This merger produces
-   * an RDD of ADAMVariantContexts, which unifies all the variation/genotype data for a specific locus.
-   *
-   * @param variants RDD containing ADAMVariant records (allele data).
-   * @param genotypes RDD containing ADAMGenotype records (genotype data).
-   * @param variantDomains Option[RDD] containing annotated variant domain data. Provide None if omitted.
-   * @return An RDD containing variant domains, which are separated by locus.
-   */
-  def mergeVariantsAndGenotypes(variants: RDD[ADAMVariant],
-                                genotypes: RDD[ADAMGenotype],
-                                variantDomains: Option[RDD[ADAMVariantDomain]] = None
-                                 ): RDD[ADAMVariantContext] = {
-    // group variants and genotypes by locus
-    val groupedVariants = variants.keyBy(_.getPosition.toLong).groupByKey
-    val groupedGenotypes = genotypes.keyBy(_.getPosition.toLong).groupByKey
 
-    // perform initial merger of variants and genotypes
-    val initialMerge = groupedVariants.join(groupedGenotypes)
-      .filter(kv => !kv._2._1.isEmpty)
-
-    // merge in variant domain
-    val mergeAfterDomain: RDD[(Long, (Seq[ADAMVariant], Seq[ADAMGenotype], Option[ADAMVariantDomain]))] = variantDomains match {
-      case Some(o) => {
-        // if domains are present, group by locus
-        val groupedDomains = o.asInstanceOf[RDD[ADAMVariantDomain]].keyBy(_.getPosition.toLong)
-
-        // join with variant/genotype data and then flatten tuple
-        initialMerge.join(groupedDomains)
-          .map((kv: (Long, ((Seq[ADAMVariant], Seq[ADAMGenotype]), ADAMVariantDomain))) => {
-          (kv._1, (kv._2._1._1, kv._2._1._2, Option(kv._2._2)))
-        })
-      }
-      case None => {
-        initialMerge.map((kv: (Long, (Seq[ADAMVariant], Seq[ADAMGenotype]))) => {
-          (kv._1, (kv._2._1, kv._2._2, None.asInstanceOf[Option[ADAMVariantDomain]]))
-        })
-      }
-    }
-
-    // map variant contexts
-    mergeAfterDomain.map(ADAMVariantContext(_))
-  }
-
-  /**
-   * Constructs an ADAMVariantContext from locus data. Used in merger process.
-   *
-   * @param kv Nested tuple containing (locus on reference, (variants at site, genotypes at site,
-   *           optional domain annotation at site))
-   * @return ADAMVariantContext corresponding to the data above.
-   */
-  private def apply(kv: (Long, (Seq[ADAMVariant], Seq[ADAMGenotype], Option[ADAMVariantDomain]))
-                     ): ADAMVariantContext = {
-    new ADAMVariantContext(kv._1, kv._2._1, kv._2._2, kv._2._3)
-  }
 }
 
 /**
@@ -95,8 +38,5 @@ object ADAMVariantContext {
  * - rdd/AdamContext.scala --> adamVariantLoad function
  * - If there is a corresponding conversion of that data between VCF and ADAM, commands/VariantContextConverter.scala
  */
-case class ADAMVariantContext(position: Long,
-                              variants: Seq[ADAMVariant],
-                              genotypes: Seq[ADAMGenotype],
-                              domains: Option[ADAMVariantDomain]) {
+case class ADAMVariantContext(variant: ADAMVariant) {
 }
