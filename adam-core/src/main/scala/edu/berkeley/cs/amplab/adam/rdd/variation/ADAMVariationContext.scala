@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-package edu.berkeley.cs.amplab.adam.rdd.variant
+package edu.berkeley.cs.amplab.adam.rdd.variation
 
 import org.apache.spark.{SparkContext, Logging}
+import org.apache.spark.rdd.RDD
+import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 
-object VariantContext {
+object ADAMVariationContext {
+
+  implicit def sparkContextToADAMVariationContext(sc: SparkContext): ADAMVariationContext = new ADAMVariationContext(sc)
+
+  implicit def rddToADAMVariantContextRDD(rdd: RDD[ADAMVariantContext]) = new ADAMVariantContextRDDFunctions(rdd)
 
 }
 
-class VariantContext(sc: SparkContext) extends Serializable with Logging {
+class ADAMVariationContext(sc: SparkContext) extends Serializable with Logging {
 
 }

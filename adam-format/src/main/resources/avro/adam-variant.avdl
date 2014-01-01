@@ -5,7 +5,7 @@ record ADAMReferenceRecord {
   union { null, int }    referenceId;
   union { null, string } referenceName;
   union { null, long }   referenceLength = null;
-  union { null, string } referenceUrl = null;
+  union { null, string } referenceURL = null;
   union { null, string } referenceMD5 = null;
 }
 
@@ -15,13 +15,38 @@ record ADAMReferenceDictionary {
 
 record ADAMContig {
   union { null, string } contigName;
-  union { null, int }    contigId;
+  union { null, int }    contigId = null;
   union { null, ADAMReferenceDictionary } referenceDictionary = null;
 }
 
 record ADAMVariant {
   union { null, ADAMContig } contig;
   union { null, long }       position;
+  union { null, string }     referenceAllele;
+  union { null, string }     variantAllele = null;
 }
+
+record ADAMGenotype {
+  union { null, ADAMVariant } variant;
+
+  // Variant-level "provenance" data, i.e. data shared amongst all concurrently genotyped samples
+
+
+  // Sample-level data, i.e. data specific to this particular sample
+  union { null, string } sampleId;
+
+  array <string> alleles = null;
+
+  union { boolean, null } isPhased = false;
+  union { null, string }  phaseSetId = null;
+  union { null, int }     phaseQuality = null;
+}
+
+record ADAMDatabaseVariantAnnotation {
+  union { null, ADAMVariant } variant;
+
+  union { null, int } dbsnpId = null;
+}
+
 
 }

@@ -259,7 +259,7 @@ object SequenceDictionary {
   def fromADAMReferenceDictionary(dictionary: ADAMReferenceDictionary): SequenceDictionary = {
     SequenceDictionary(dictionary.getReferenceRecords.map {
       seqRecord: ADAMReferenceRecord =>
-        SequenceRecord(seqRecord.getReferenceId, seqRecord.getReferenceName,  seqRecord.getReferenceLength, seqRecord.getReferenceUrl)
+        SequenceRecord(seqRecord.getReferenceId, seqRecord.getReferenceName,  seqRecord.getReferenceLength, seqRecord.getReferenceURL)
     }: _*)
 
   }
