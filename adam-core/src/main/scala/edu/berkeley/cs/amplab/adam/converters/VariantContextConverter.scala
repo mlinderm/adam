@@ -15,9 +15,12 @@
  */
 package edu.berkeley.cs.amplab.adam.converters
 
-import org.broadinstitute.variant.variantcontext.VariantContext
-import edu.berkeley.cs.amplab.adam.avro.ADAMVariant
+import scala.collection.JavaConverters._
+import org.apache.spark.Logging
+import org.broadinstitute.variant.variantcontext.{Allele, Genotype, VariantContext}
+import edu.berkeley.cs.amplab.adam.avro._
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
+import org.broadinstitute.variant.vcf.VCFConstants
 
 /**
  * This class converts VCF data to and from ADAM. This translation occurs at the abstraction level
@@ -27,22 +30,53 @@ import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
  * If an annotation has a corresponding set of fields in the VCF standard, a conversion to/from the
  * GATK VariantContext should be implemented in this class.
  */
-private[adam] class VariantContextConverter extends Serializable {
+private[adam] class VariantContextConverter extends Serializable with Logging {
+  initLogging()
+
+  private def convertAllele(allele: Allele): ADAMGenotypeAllele = {
+    if (allele.isNoCall) ADAMGenotypeAllele.NoCall
+    else if (allele.isReference) ADAMGenotypeAllele.Ref
+    else ADAMGenotypeAllele.Alt
+  }
 
   /**
-   * Converts a single GATK variant into an ADAMVariantContext. This involves converting:
-   *
-   * - Alleles seen segregating at site
-   * - Genotypes of samples
-   * - Variant domain data
+   * Converts a single GATK variant into ADAMVariantContext(s).
    *
    * @param vc GATK Variant context to convert.
-   * @return ADAM variant context containing allele, genotype, and domain data.
+   * @return ADAM variant contexts
    */
-  def convert(vc: VariantContext): ADAMVariantContext = {
-    val variant: ADAMVariant.Builder = ADAMVariant.newBuilder
-      .setPosition(1)
-    ADAMVariantContext(variant.build)
+  def convert(vc: VariantContext, contigId: Option[Int]=None, refDict: Option[ADAMReferenceDictionary]=None): Seq[ADAMVariantContext] = {
+
+    val contig: ADAMContig.Builder = ADAMContig.newBuilder()
+      .setContigName(vc.getChr)
+    if (contigId.isDefined) contig.setContigId(contigId.get)
+    if (refDict.isDefined) contig.setReferenceDictionary(refDict.get)
+
+    // TODO: Handle multi-allelic sites
+    assert(vc.isBiallelic, "Multi-allelic sites are not yet supported")
+
+    val variant: ADAMVariant = ADAMVariant.newBuilder
+      .setContig(contig.build)
+      .setPosition(vc.getStart - 1 /* ADAM is 0-indexed */)
+      .setReferenceAllele(vc.getReference.getBaseString)
+      .setVariantAllele(vc.getAlternateAllele(0).getBaseString)
+      .build
+
+    val genotypes: Seq[ADAMGenotype] = vc.getGenotypes.iterator.asScala.map((g: Genotype) => {
+      val genotype: ADAMGenotype.Builder = ADAMGenotype.newBuilder
+        .setVariant(variant)
+        .setSampleId(g.getSampleName)
+        .setAlleles(g.getAlleles.asScala.map(convertAllele(_)).asJava)
+        .setIsPhased(g.isPhased)
+
+      if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
+        genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf)
+
+      genotype.build
+    }).toSeq
+
+
+    Seq(ADAMVariantContext(variant, genotypes = genotypes))
   }
 
 }

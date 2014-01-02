@@ -19,20 +19,30 @@ package edu.berkeley.cs.amplab.adam.rdd.variation
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
-import edu.berkeley.cs.amplab.adam.avro.ADAMDatabaseVariantAnnotation
+import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMGenotype, ADAMDatabaseVariantAnnotation}
 import org.apache.spark.SparkContext._
 
 class ADAMVariantContextRDDFunctions(rdd: RDD[ADAMVariantContext]) extends Serializable with Logging {
   initLogging()
 
   /**
-   * Join variant annotations or other data to a VariantContext
+   * Left outer join database variant annotations
    *
    */
-  def joinDatabaseVariantAnnotation(annotation: RDD[ADAMDatabaseVariantAnnotation]): RDD[ADAMVariantContext] = {
+  def joinDatabaseVariantAnnotation(ann: RDD[ADAMDatabaseVariantAnnotation]): RDD[ADAMVariantContext] = {
     rdd.keyBy(_.variant)
-      .leftOuterJoin(annotation.keyBy(_.variant))
+      .leftOuterJoin(ann.keyBy(_.getVariant))
       .values
-      .map { case (vc:ADAMVariantContext, ann) => new ADAMVariantContext(vc.variant, ann) }
+      .map { case (v:ADAMVariantContext, a) => new ADAMVariantContext(v.variant, v.genotypes, databases = a) }
+  }
+}
+
+class ADAMGenotypeRDDFunctions(rdd: RDD[ADAMGenotype]) extends Serializable with Logging {
+  initLogging()
+
+  def toADAMVariantContext(): RDD[ADAMVariantContext] = {
+    rdd.keyBy(_.getVariant)
+      .groupByKey
+      .map { case (v:ADAMVariant, g) => new ADAMVariantContext(v, genotypes = g) }
   }
 }

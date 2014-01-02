@@ -26,6 +26,10 @@ record ADAMVariant {
   union { null, string }     variantAllele = null;
 }
 
+enum ADAMGenotypeAllele {
+  Ref, Alt, NoCall
+}
+
 record ADAMGenotype {
   union { null, ADAMVariant } variant;
 
@@ -35,7 +39,7 @@ record ADAMGenotype {
   // Sample-level data, i.e. data specific to this particular sample
   union { null, string } sampleId;
 
-  array <string> alleles = null;
+  array <ADAMGenotypeAllele> alleles = null;
 
   union { boolean, null } isPhased = false;
   union { null, string }  phaseSetId = null;

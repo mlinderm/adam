@@ -15,9 +15,29 @@
  */
 package edu.berkeley.cs.amplab.adam.converters
 
+import scala.collection.JavaConverters._
 import org.scalatest.FunSuite
+import org.broadinstitute.variant.variantcontext.{Allele, VariantContextBuilder}
 
 class VariantContextConverterSuite extends FunSuite {
+  test("Convert site-only SNV") {
+    val vc = new VariantContextBuilder()
+      .alleles(List(Allele.create("A",true), Allele.create("T")).asJavaCollection)
+      .start(1L)
+      .stop(1L)
+      .chr("1")
+      .make()
 
+    val converter = new VariantContextConverter
 
+    val adamVCs = converter.convert(vc)
+    assert(adamVCs.length === 1)
+
+    val adamVC = adamVCs.head
+    assert(adamVC.genotypes.length === 0)
+
+    val variant = adamVC.variant
+    assert(variant.getReferenceAllele === "A")
+    assert(variant.getPosition === 0L)
+  }
 }

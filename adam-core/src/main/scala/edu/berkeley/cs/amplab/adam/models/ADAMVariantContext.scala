@@ -15,7 +15,7 @@
  */
 package edu.berkeley.cs.amplab.adam.models
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMDatabaseVariantAnnotation}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMGenotype, ADAMVariant, ADAMDatabaseVariantAnnotation}
 import scala.Option
 
 object ADAMVariantContext {
@@ -24,6 +24,7 @@ object ADAMVariantContext {
 }
 
 case class ADAMVariantContext(variant: ADAMVariant,
+                              genotypes: Seq[ADAMGenotype] = Seq(),
                               databases: Option[ADAMDatabaseVariantAnnotation] = None) {
 
 }
