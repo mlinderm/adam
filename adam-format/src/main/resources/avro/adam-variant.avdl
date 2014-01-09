@@ -35,13 +35,15 @@ record ADAMGenotype {
 
   // Variant-level "provenance" data, i.e. data shared amongst all concurrently genotyped samples
 
+  union { null, boolean } varIsFiltered = null;  // "null" implies no filters were applied
+  array <string> varFilters = null;
 
   // Sample-level data, i.e. data specific to this particular sample
-  union { null, string } sampleId;
+  union { null, string } sampleId = null;
 
   array <ADAMGenotypeAllele> alleles = null;
 
-  union { boolean, null } isPhased = false;
+  union { null, boolean } isPhased = null;
   union { null, string }  phaseSetId = null;
   union { null, int }     phaseQuality = null;
 }

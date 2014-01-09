@@ -69,6 +69,11 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
         .setAlleles(g.getAlleles.asScala.map(convertAllele(_)).asJava)
         .setIsPhased(g.isPhased)
 
+      if (vc.filtersWereApplied()) {
+        genotype.setVarIsFiltered(vc.isFiltered)
+        genotype.setVarFilters(vc.getFilters.asScala.toList.asInstanceOf)
+      }
+
       if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
         genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf)
 
