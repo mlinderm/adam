@@ -90,8 +90,14 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
     seqDict
   }
 
+
+  private def adamVcfLoad(filePath: String): (RDD[ADAMReferenceRecord], RDD[ADAMVariant]){
+    log.info("Reading VCF file from %s".format(filePath))
+
+  }
+
   private def adamBamLoad(filePath: String): RDD[ADAMRecord] = {
-    log.info("Reading legacy BAM file format %s to create RDD".format(filePath))
+    log.info("Reading BAM file format %s to create RDD".format(filePath))
 
     // We need to separately read the header, so that we can inject the sequence dictionary
     // data into each individual ADAMRecord (see the argument to samRecordConverter.convert,

@@ -19,6 +19,8 @@ package edu.berkeley.cs.amplab.adam.cli
 import org.apache.spark.{Logging, SparkContext}
 import org.kohsuke.args4j.Argument
 import org.apache.hadoop.mapreduce.Job
+import org.broadinstitute.variant.vcf.VCFFileReader;
+import org.broadinstitute.variant.vcf.VCFHeader;
 
 object Vcf2Adam extends AdamCommandCompanion {
 
@@ -41,6 +43,12 @@ class Vcf2Adam(val args: Vcf2AdamArgs) extends AdamSparkCommand[Vcf2AdamArgs] wi
   val companion = Vcf2Adam
 
   def run(sc: SparkContext, job: Job) {
-
+    val reader = new VCFFileReader(args.vcfFile, false)
+    val header = new VCFHeader(reader.getHeader())
+    List<VCFContigHeaderLine> header_contigs = header.getContigLines()
+    val it = header_contigs.iterator
+    while (it.hasNext()) {
+      println(it.next().toString())
+    }
   }
 }

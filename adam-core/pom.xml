@@ -81,7 +81,7 @@
             <artifactId>hadoop-bam</artifactId>
         </dependency>
         <dependency>
-            <groupId>picard</groupId>
+            <groupId>org.utgenome.thirdparty</groupId>
             <artifactId>picard</artifactId>
         </dependency>
         <dependency>
