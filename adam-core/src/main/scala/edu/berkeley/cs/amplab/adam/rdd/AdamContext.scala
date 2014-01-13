@@ -15,7 +15,7 @@
  */
 package edu.berkeley.cs.amplab.adam.rdd
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup, ADAMRecord}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup, ADAMRecord, ADAMReferenceRecord, ADAMVariant}
 import parquet.hadoop.ParquetInputFormat
 import parquet.avro.{AvroParquetInputFormat, AvroReadSupport}
 import parquet.hadoop.util.ContextUtil
@@ -91,9 +91,9 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
   }
 
 
-  private def adamVcfLoad(filePath: String): (RDD[ADAMReferenceRecord], RDD[ADAMVariant]){
+  private def adamVcfLoad(filePath: String): (RDD[ADAMReferenceRecord], RDD[ADAMVariant]) = {
     log.info("Reading VCF file from %s".format(filePath))
-
+    (null, null)
   }
 
   private def adamBamLoad(filePath: String): RDD[ADAMRecord] = {
