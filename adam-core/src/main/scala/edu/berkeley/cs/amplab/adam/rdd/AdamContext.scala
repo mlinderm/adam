@@ -35,9 +35,6 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Logging, SparkContext}
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFFileReader;
-import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeader;
 import parquet.avro.{AvroParquetInputFormat, AvroReadSupport}
 import parquet.filter.UnboundRecordFilter
 import parquet.hadoop.ParquetInputFormat
@@ -211,10 +208,12 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
     */
   def adamVcfLoad(filePath: String): RDD[ADAMVariantContext] = {
     log.info("Reading VCF file from %s".format(filePath))
+    println("Reading VCF file from %s".format(filePath))
     val job = new Job(sc.hadoopConfiguration)
     val vcc = new VariantContextConverter()
     val records = sc.newAPIHadoopFile(filePath, classOf[VCFInputFormat], classOf[LongWritable],
       classOf[VariantContextWritable], ContextUtil.getConfiguration(job))
+    println("Record count %d".format(records.count()))
     records.map(p => vcc.convert(p._2.get))
   }
 
