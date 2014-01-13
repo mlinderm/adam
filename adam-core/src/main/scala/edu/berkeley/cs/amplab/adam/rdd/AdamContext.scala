@@ -32,8 +32,10 @@ import org.apache.avro.specific.SpecificRecord
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.mapreduce.Job
+import org.apache.spark.Accumulator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Logging, SparkContext}
+import org.apache.spark.SparkContext._
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import parquet.avro.{AvroParquetInputFormat, AvroReadSupport}
 import parquet.filter.UnboundRecordFilter
@@ -42,6 +44,11 @@ import parquet.hadoop.util.ContextUtil
 import scala.Some
 import scala.collection.JavaConversions._
 import scala.collection.Map
+
+class Vcf2AdamCounters(sc : SparkContext) extends Serializable {
+  val recs = sc.accumulator(0)
+  val multiallelic = sc.accumulator(0)
+}
 
 object AdamContext {
   // Add ADAM Spark context methods
@@ -206,11 +213,11 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
     * @param filePath: input VCF file to read
     * @return RDD of variants
     */
-  def adamVcfLoad(filePath: String): RDD[ADAMVariantContext] = {
+  def adamVcfLoad(filePath: String, counters : Vcf2AdamCounters): RDD[ADAMVariantContext] = {
     log.info("Reading VCF file from %s".format(filePath))
     println("Reading VCF file from %s".format(filePath))
     val job = new Job(sc.hadoopConfiguration)
-    val vcc = new VariantContextConverter()
+    val vcc = new VariantContextConverter(Some(counters))
     val records = sc.newAPIHadoopFile(filePath, classOf[VCFInputFormat], classOf[LongWritable],
       classOf[VariantContextWritable], ContextUtil.getConfiguration(job))
     println("Record count %d".format(records.count()))

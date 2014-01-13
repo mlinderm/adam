@@ -19,6 +19,7 @@ import scala.collection.JavaConverters._
 import org.apache.spark.Logging
 import org.broadinstitute.variant.variantcontext.{Allele, Genotype, VariantContext}
 import edu.berkeley.cs.amplab.adam.avro._
+import edu.berkeley.cs.amplab.adam.rdd.Vcf2AdamCounters
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 import org.broadinstitute.variant.vcf.VCFConstants
 
@@ -30,8 +31,12 @@ import org.broadinstitute.variant.vcf.VCFConstants
  * If an annotation has a corresponding set of fields in the VCF standard, a conversion to/from the
  * GATK VariantContext should be implemented in this class.
  */
-private[adam] class VariantContextConverter extends Serializable with Logging {
+private[adam] class VariantContextConverter(counters : Option[Vcf2AdamCounters]) extends Serializable with Logging {
   initLogging()
+
+  def this() = {
+    this(None)
+  }
 
   private def convertAllele(allele: Allele): ADAMGenotypeAllele = {
     if (allele.isNoCall) ADAMGenotypeAllele.NoCall
@@ -53,7 +58,10 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
     if (refDict.isDefined) contig.setReferenceDictionary(refDict.get)
 
     // TODO: Handle multi-allelic sites
-    assert(vc.isBiallelic, "Multi-allelic sites are not yet supported")
+    if (vc.isBiallelic) {
+      counters.flatMap(x => Some(x.multiallelic += 1))
+      None
+    }
 
     val variant: ADAMVariant = ADAMVariant.newBuilder
       .setContig(contig.build)
@@ -62,6 +70,7 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
       .setVariantAllele(vc.getAlternateAllele(0).getBaseString)
       .build
 
+
     val genotypes: Seq[ADAMGenotype] = vc.getGenotypes.iterator.asScala.map((g: Genotype) => {
       val genotype: ADAMGenotype.Builder = ADAMGenotype.newBuilder
         .setVariant(variant)
@@ -69,9 +78,19 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
         .setAlleles(g.getAlleles.asScala.map(convertAllele(_)).asJava)
         .setIsPhased(g.isPhased)
 
-      if (vc.filtersWereApplied()) {
+      if (vc.isFiltered) {
         genotype.setVarIsFiltered(vc.isFiltered)
-        genotype.setVarFilters(vc.getFilters.asScala.toList.asInstanceOf)
+        try {
+          genotype.setVarFilters(vc.getFilters.asScala.toList.asInstanceOf)
+        } catch {
+          case ex: ClassCastException =>{
+            println(vc.toString)
+            println(vc.getFilters)
+            println(vc.getFilters.asScala)
+            println(vc.getFilters.asScala.toList)
+            throw ex
+          }
+        }
       }
 
       if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
@@ -79,8 +98,7 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
 
       genotype.build
     }).toSeq
-
-
+    counters.flatMap(x => Some(x.recs += 1))
     ADAMVariantContext(variant, genotypes = genotypes)
   }
 

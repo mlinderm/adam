@@ -20,6 +20,7 @@ import java.io.File;
 
 import org.apache.spark.{Logging, SparkContext}
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
+import edu.berkeley.cs.amplab.adam.rdd.Vcf2AdamCounters
 import org.apache.spark.rdd.RDD
 import org.kohsuke.args4j.Argument
 import org.apache.hadoop.mapreduce.Job
@@ -46,7 +47,11 @@ class Vcf2Adam(val args: Vcf2AdamArgs) extends AdamSparkCommand[Vcf2AdamArgs] wi
   val companion = Vcf2Adam
 
   def run(sc: SparkContext, job: Job) {
-    println("inside run")
-    var adamVariants: RDD[ADAMVariantContext] = sc.adamVcfLoad(args.vcfFile)
+    
+    var counters = new Vcf2AdamCounters(sc)
+    var adamVariants : RDD[ADAMVariantContext] = sc.adamVcfLoad(args.vcfFile, counters)
+    adamVariants.map(p => p.variant).adamSave(args.outputPath, blockSize = args.blockSize, pageSize = args.pageSize,
+      compressCodec = args.compressionCodec, disableDictionaryEncoding = args.disableDictionary)
+    print("multiallelic: %d\ntotal records: %d\n".format(counters.multiallelic.value, counters.recs.value))
   }
 }
