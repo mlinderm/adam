@@ -17,14 +17,13 @@
 package edu.berkeley.cs.amplab.adam.cli
 
 import java.io.File;
-import java.util.List;
 
 import org.apache.spark.{Logging, SparkContext}
+import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
+import org.apache.spark.rdd.RDD
 import org.kohsuke.args4j.Argument
 import org.apache.hadoop.mapreduce.Job
-import org.broadinstitute.variant.vcf.VCFFileReader;
-import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeader;
+import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 
 object Vcf2Adam extends AdamCommandCompanion {
 
@@ -48,12 +47,6 @@ class Vcf2Adam(val args: Vcf2AdamArgs) extends AdamSparkCommand[Vcf2AdamArgs] wi
 
   def run(sc: SparkContext, job: Job) {
     println("inside run")
-    val reader = new VCFFileReader(new File(args.vcfFile), false)
-    val header = new VCFHeader(reader.getFileHeader())
-    val header_contigs = header.getContigLines()
-    val it = header_contigs.iterator
-    while (it.hasNext()) {
-      println(it.next().toString())
-    }
+    var adamVariants: RDD[ADAMVariantContext] = sc.adamVcfLoad(args.vcfFile)
   }
 }

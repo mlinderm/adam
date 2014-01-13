@@ -15,29 +15,36 @@
  */
 package edu.berkeley.cs.amplab.adam.rdd
 
+import java.io.File;
+
+
 import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup, ADAMRecord, ADAMReferenceRecord, ADAMVariant}
-import parquet.hadoop.ParquetInputFormat
-import parquet.avro.{AvroParquetInputFormat, AvroReadSupport}
-import parquet.hadoop.util.ContextUtil
-import org.apache.hadoop.mapreduce.Job
-import parquet.filter.UnboundRecordFilter
+import edu.berkeley.cs.amplab.adam.converters.SAMRecordConverter
+import edu.berkeley.cs.amplab.adam.converters.VariantContextConverter
+import edu.berkeley.cs.amplab.adam.models._
+import edu.berkeley.cs.amplab.adam.projections.{ADAMRecordField, Projection}
+import edu.berkeley.cs.amplab.adam.rdd.compare.CompareAdam
+import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord
+import fi.tkk.ics.hadoop.bam.util.SAMHeaderReader
+import fi.tkk.ics.hadoop.bam.{SAMRecordWritable, AnySAMInputFormat, VCFInputFormat, VariantContextWritable}
 import org.apache.avro.Schema
 import org.apache.avro.specific.SpecificRecord
-import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord
-import fi.tkk.ics.hadoop.bam.{SAMRecordWritable, AnySAMInputFormat}
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.LongWritable
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Logging, SparkContext}
-import scala.collection.JavaConversions._
-import edu.berkeley.cs.amplab.adam.models._
-import org.apache.hadoop.fs.Path
-import fi.tkk.ics.hadoop.bam.util.SAMHeaderReader
-import edu.berkeley.cs.amplab.adam.projections.{ADAMRecordField, Projection}
-import edu.berkeley.cs.amplab.adam.converters.SAMRecordConverter
-import edu.berkeley.cs.amplab.adam.rdd.compare.CompareAdam
-import scala.collection.Map
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFFileReader;
+import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
+import org.broadinstitute.variant.vcf.VCFHeader;
+import parquet.avro.{AvroParquetInputFormat, AvroReadSupport}
+import parquet.filter.UnboundRecordFilter
+import parquet.hadoop.ParquetInputFormat
+import parquet.hadoop.util.ContextUtil
 import scala.Some
-import edu.berkeley.cs.amplab.adam.models.ADAMRod
+import scala.collection.JavaConversions._
+import scala.collection.Map
 
 object AdamContext {
   // Add ADAM Spark context methods
@@ -90,11 +97,6 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
     seqDict
   }
 
-
-  private def adamVcfLoad(filePath: String): (RDD[ADAMReferenceRecord], RDD[ADAMVariant]) = {
-    log.info("Reading VCF file from %s".format(filePath))
-    (null, null)
-  }
 
   private def adamBamLoad(filePath: String): RDD[ADAMRecord] = {
     log.info("Reading BAM file format %s to create RDD".format(filePath))
@@ -200,6 +202,21 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
     }
   }
 
+
+
+  /**
+    * This method will create a new RDD of VariantContext objects
+    * @param filePath: input VCF file to read
+    * @return RDD of variants
+    */
+  def adamVcfLoad(filePath: String): RDD[ADAMVariantContext] = {
+    log.info("Reading VCF file from %s".format(filePath))
+    val job = new Job(sc.hadoopConfiguration)
+    val vcc = new VariantContextConverter()
+    val records = sc.newAPIHadoopFile(filePath, classOf[VCFInputFormat], classOf[LongWritable],
+      classOf[VariantContextWritable], ContextUtil.getConfiguration(job))
+    records.map(p => vcc.convert(p._2.get))
+  }
 
 
   /**

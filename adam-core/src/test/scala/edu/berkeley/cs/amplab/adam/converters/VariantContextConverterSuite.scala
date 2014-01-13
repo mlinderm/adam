@@ -30,10 +30,9 @@ class VariantContextConverterSuite extends FunSuite {
 
     val converter = new VariantContextConverter
 
-    val adamVCs = converter.convert(vc)
-    assert(adamVCs.length === 1)
+    val adamVC = converter.convert(vc)
+    assert(adamVC != null)
 
-    val adamVC = adamVCs.head
     assert(adamVC.genotypes.length === 0)
 
     val variant = adamVC.variant

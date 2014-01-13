@@ -45,7 +45,7 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
    * @param vc GATK Variant context to convert.
    * @return ADAM variant contexts
    */
-  def convert(vc: VariantContext, contigId: Option[Int]=None, refDict: Option[ADAMReferenceDictionary]=None): Seq[ADAMVariantContext] = {
+  def convert(vc: VariantContext, contigId: Option[Int]=None, refDict: Option[ADAMReferenceDictionary]=None): ADAMVariantContext = {
 
     val contig: ADAMContig.Builder = ADAMContig.newBuilder()
       .setContigName(vc.getChr)
@@ -81,7 +81,7 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
     }).toSeq
 
 
-    Seq(ADAMVariantContext(variant, genotypes = genotypes))
+    ADAMVariantContext(variant, genotypes = genotypes)
   }
 
 }
