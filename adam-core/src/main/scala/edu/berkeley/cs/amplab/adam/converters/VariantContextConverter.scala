@@ -84,11 +84,6 @@ private[adam] class VariantContextConverter(counters : Option[Vcf2AdamCounters])
           genotype.setVarFilters(vc.getFilters.asScala.toList.asInstanceOf)
         } catch {
           case ex: ClassCastException =>{
-            println(vc.toString)
-            println(vc.getFilters)
-            println(vc.getFilters.asScala)
-            println(vc.getFilters.asScala.toList)
-            throw ex
           }
         }
       }

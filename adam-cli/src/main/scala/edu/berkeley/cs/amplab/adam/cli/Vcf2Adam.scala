@@ -18,13 +18,15 @@ package edu.berkeley.cs.amplab.adam.cli
 
 import java.io.File;
 
-import org.apache.spark.{Logging, SparkContext}
+import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 import edu.berkeley.cs.amplab.adam.rdd.Vcf2AdamCounters
+import edu.berkeley.cs.amplab.adam.util.ParquetLogger
+import java.util.logging.Level
+import org.apache.hadoop.mapreduce.Job
+import org.apache.spark.{Logging, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.kohsuke.args4j.Argument
-import org.apache.hadoop.mapreduce.Job
-import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 
 object Vcf2Adam extends AdamCommandCompanion {
 
