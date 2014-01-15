@@ -58,7 +58,7 @@ private[adam] class VariantContextConverter(counters : Option[Vcf2AdamCounters])
     if (refDict.isDefined) contig.setReferenceDictionary(refDict.get)
 
     // TODO: Handle multi-allelic sites
-    if (vc.isBiallelic) {
+    if (!vc.isBiallelic) {
       counters.flatMap(x => Some(x.multiallelic += 1))
       None
     }
