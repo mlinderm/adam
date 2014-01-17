@@ -70,7 +70,6 @@ private[adam] class VariantContextConverter(counters : Option[Vcf2AdamCounters])
       .setVariantAllele(vc.getAlternateAllele(0).getBaseString)
       .build
 
-
     val genotypes: Seq[ADAMGenotype] = vc.getGenotypes.iterator.asScala.map((g: Genotype) => {
       val genotype: ADAMGenotype.Builder = ADAMGenotype.newBuilder
         .setVariant(variant)
@@ -89,7 +88,10 @@ private[adam] class VariantContextConverter(counters : Option[Vcf2AdamCounters])
       }
 
       if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
-        genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf)
+        genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf[Integer])
+
+      if (g.hasExtendedAttribute(VCFConstants.PHASE_SET_KEY))
+        genotype.setPhaseSetId(g.getExtendedAttribute(VCFConstants.PHASE_SET_KEY).asInstanceOf[CharSequence])
 
       genotype.build
     }).toSeq

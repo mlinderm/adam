@@ -16,8 +16,10 @@
 package edu.berkeley.cs.amplab.adam.converters
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions
 import org.scalatest.FunSuite
-import org.broadinstitute.variant.variantcontext.{Allele, VariantContextBuilder}
+import org.broadinstitute.variant.variantcontext.{Allele, VariantContextBuilder, GenotypeBuilder}
+import java.lang.Integer;
 
 class VariantContextConverterSuite extends FunSuite {
   test("Convert site-only SNV") {
@@ -34,6 +36,29 @@ class VariantContextConverterSuite extends FunSuite {
     assert(adamVC != null)
 
     assert(adamVC.genotypes.length === 0)
+
+    val variant = adamVC.variant
+    assert(variant.getReferenceAllele === "A")
+    assert(variant.getPosition === 0L)
+  }
+
+  test("Convert genotypes with phase information") {
+    val vcb = new VariantContextBuilder()
+      .alleles(List(Allele.create("A",true), Allele.create("T")).asJavaCollection)
+      .start(1L)
+      .stop(1L)
+      .chr("1")
+
+    val genotypeAttributes = JavaConversions.mapAsJavaMap(Map[String, Object]("PQ" -> new Integer(50), "PS" -> "1"))
+    val genotype = GenotypeBuilder.create("NA12878", vcb.getAlleles(), genotypeAttributes)
+    val vc = vcb.genotypes(List(genotype).asJavaCollection).make()
+
+    val converter = new VariantContextConverter
+
+    val adamVC = converter.convert(vc)
+    assert(adamVC != null)
+
+    assert(adamVC.genotypes.length === 1)
 
     val variant = adamVC.variant
     assert(variant.getReferenceAllele === "A")
