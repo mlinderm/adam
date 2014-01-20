@@ -16,7 +16,7 @@
 package edu.berkeley.cs.amplab.adam.util
 
 
-object VcfStringUtils {
+object VCFStringUtils {
 
   def clean(s: String): String = {
     val s0 = if (s.startsWith("[")) {
@@ -73,4 +73,6 @@ object VcfStringUtils {
   }
 
   def stringToList(s: String): List[String] = s.split(",").toList
+
+  def rsIDtoInt(s: String): Int = s.stripPrefix("rs").toInt
 }
