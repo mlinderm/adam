@@ -260,6 +260,7 @@ object SequenceDictionary {
   def fromSAMReader(samReader: SAMFileReader): SequenceDictionary =
     fromSAMHeader(samReader.getFileHeader)
 
+
   def nonoverlappingHash(x: CharSequence, conflicts: Int => Boolean): Int = {
     var hash = x.hashCode
     while (conflicts(hash)) {
