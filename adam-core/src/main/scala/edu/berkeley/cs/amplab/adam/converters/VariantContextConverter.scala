@@ -72,16 +72,27 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
         .setVariant(variant)
         .setSampleId(g.getSampleName)
         .setAlleles(g.getAlleles.asScala.map(convertAllele(_)).asJava)
-        .setIsPhased(g.isPhased)
 
       if (vc.isFiltered) {
-        genotype.setVarIsFiltered(vc.isFiltered)
-        genotype.setVarFilters(new util.ArrayList(vc.getFilters))
+        genotype.setVarIsFiltered(vc.isFiltered).setVarFilters(new util.ArrayList(vc.getFilters))
       }
 
+      if (g.hasGQ) genotype.setGtQuality(g.getGQ)
+      if (g.hasDP) genotype.setReadDepth(g.getDP)
+      if (g.hasAD) {
+        val ad = g.getAD
+        assert(ad.length == 2, "Unexpected number of allele depths for biallelic variant")
+        genotype.setRefReadDepth(ad(0)).setAltReadDepth(ad(1))
+      }
+      if (g.isFiltered) {
+        // TODO: There has got be a better way to deal with the types here...
+        genotype.setGtIsFiltered(true).setGtFilters(new util.ArrayList(g.getFilters.split(';').toList.asJava))
+      } else
+        genotype.setGtIsFiltered(false)
+
+      genotype.setIsPhased(g.isPhased)
       if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
         genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf[java.lang.Integer])
-
       if (g.hasExtendedAttribute(VCFConstants.PHASE_SET_KEY))
         genotype.setPhaseSetId(g.getExtendedAttribute(VCFConstants.PHASE_SET_KEY).asInstanceOf[CharSequence])
 
