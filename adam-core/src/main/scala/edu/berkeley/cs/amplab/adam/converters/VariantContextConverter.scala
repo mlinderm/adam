@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
 import org.apache.spark.Logging
 import org.broadinstitute.variant.variantcontext.{Allele, Genotype, VariantContext}
 import edu.berkeley.cs.amplab.adam.avro._
-import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
+import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ADAMVariantContext}
 import org.broadinstitute.variant.vcf.VCFConstants
 import java.util
 
@@ -31,7 +31,7 @@ import java.util
  * If an annotation has a corresponding set of fields in the VCF standard, a conversion to/from the
  * GATK VariantContext should be implemented in this class.
  */
-private[adam] class VariantContextConverter extends Serializable with Logging {
+private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = None) extends Serializable with Logging {
   initLogging()
 
   private def convertAllele(allele: Allele): ADAMGenotypeAllele = {
@@ -48,8 +48,11 @@ private[adam] class VariantContextConverter extends Serializable with Logging {
    */
   def convert(vc: VariantContext): Seq[ADAMVariantContext] = {
 
-    val contig: ADAMContig.Builder = ADAMContig.newBuilder()
-      .setContigName(vc.getChr)
+    val contig: ADAMContig.Builder = ADAMContig.newBuilder().setContigName(vc.getChr)
+    if (dict.isDefined) {
+      val sr = (dict.get)(vc.getChr)
+      contig.setReferenceLength(sr.length).setReferenceURL(sr.url).setReferenceMD5(sr.md5)
+    }
 
     // TODO: Handle multi-allelic sites
     // We need to split the alleles (easy) and split and subset the PLs (harder)/update the genotype

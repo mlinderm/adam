@@ -20,17 +20,20 @@ import scala.collection.JavaConversions
 import org.scalatest.FunSuite
 import org.broadinstitute.variant.variantcontext.{Allele, VariantContextBuilder, GenotypeBuilder}
 import java.lang.Integer
+import edu.berkeley.cs.amplab.adam.models.{SequenceRecord, SequenceDictionary}
 
 class VariantContextConverterSuite extends FunSuite {
+  val dictionary = SequenceDictionary(SequenceRecord(1, "chr1", 249250621, "file:/ucsc.hg19.fasta", "1b22b98cdeb4a9304cb5d48026a85128"))
+
   test("Convert site-only SNV") {
     val vc = new VariantContextBuilder()
       .alleles(List(Allele.create("A",true), Allele.create("T")).asJavaCollection)
       .start(1L)
       .stop(1L)
-      .chr("1")
+      .chr("chr1")
       .make()
 
-    val converter = new VariantContextConverter
+    val converter = new VariantContextConverter(Some(dictionary))
 
     val adamVCs = converter.convert(vc)
     assert(adamVCs.length === 1)
@@ -39,6 +42,13 @@ class VariantContextConverterSuite extends FunSuite {
     assert(adamVC.genotypes.length === 0)
 
     val variant = adamVC.variant
+
+    val contig = variant.getContig
+    assert(contig.getContigName === "chr1")
+    assert(contig.getReferenceLength === 249250621)
+    assert(contig.getReferenceURL === "file:/ucsc.hg19.fasta")
+    assert(contig.getReferenceMD5 === "1b22b98cdeb4a9304cb5d48026a85128")
+
     assert(variant.getReferenceAllele === "A")
     assert(variant.getPosition === 0L)
   }
@@ -48,13 +58,13 @@ class VariantContextConverterSuite extends FunSuite {
       .alleles(List(Allele.create("A",true), Allele.create("T")).asJavaCollection)
       .start(1L)
       .stop(1L)
-      .chr("1")
+      .chr("chr1")
 
     val genotypeAttributes = JavaConversions.mapAsJavaMap(Map[String, Object]("PQ" -> new Integer(50), "PS" -> "1"))
     val genotype = GenotypeBuilder.create("NA12878", vcb.getAlleles(), genotypeAttributes)
     val vc = vcb.genotypes(List(genotype).asJavaCollection).make()
 
-    val converter = new VariantContextConverter
+    val converter = new VariantContextConverter(Some(dictionary))
 
     val adamVCs = converter.convert(vc)
     assert(adamVCs.length === 1)
@@ -66,4 +76,5 @@ class VariantContextConverterSuite extends FunSuite {
     assert(variant.getReferenceAllele === "A")
     assert(variant.getPosition === 0L)
   }
+
 }

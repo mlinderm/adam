@@ -17,7 +17,7 @@
 package edu.berkeley.cs.amplab.adam.rich
 
 import edu.berkeley.cs.amplab.adam.avro.{ADAMContig, ADAMVariant}
-import java.util.Arrays
+import java.util
 
 object RichADAMVariant {
   implicit def variantToRichVariant(variant: ADAMVariant): RichADAMVariant = new RichADAMVariant(variant)
@@ -28,7 +28,7 @@ class RichADAMVariant(val variant: ADAMVariant) {
  // Only include the contigName in the hash
   val hashObjects = Array[Object](variant.getContig.getContigName, 
     variant.getPosition, variant.getReferenceAllele, variant.getVariantAllele)
-  override def hashCode = Arrays.hashCode(hashObjects)
+  override def hashCode = util.Arrays.hashCode(hashObjects)
 
   private def isSameContig(left: ADAMContig, right: ADAMContig): Boolean = {
     left.getContigName == right.getContigName && (
