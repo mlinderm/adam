@@ -24,15 +24,13 @@ enum ADAMGenotypeAllele {
 // This record represents all of the variant "calling" annotations that are typically included in the
 // VCF INFO field. These attributes capture the variant calling "environment" in which this genotype was called.
 record VariantCallingAnnotations {
-  union { null, double }  baseQRankSum = null;
-  union { null, double }  clippingRankSum = null;
+  union { null, float }   baseQRankSum = null;
+  union { null, float }   clippingRankSum = null;
   union { null, int }     readDepth = null;
   union { null, boolean } downsampled = null;
-  union { null, double }  fisherStrandBiasPValue = null; // Phred-scaled.
+  union { null, float }   fisherStrandBiasPValue = null; // phred-scaled.
   union { null, float }   haplotypeScore = null;
   union { null, float }   inbreedingCoefficient = null;
-  array<int>              alleleCountMLE;
-  array<int>              alleleFrequencyMLE;
   union { null, float }   rmsMapQ = null;
   union { null, int }     mapq0Reads = null;
   union { null, float }   mqRankSum = null;
@@ -40,7 +38,7 @@ record VariantCallingAnnotations {
   union { null, boolean } usedForPositiveTrainingSet = null;
   union { null, float }   variantQualityByDepth = null;
   union { null, float }   readPositionRankSum = null;
-  union { null, float }   vqslod = null; // log odds ratio of being a true vs false variant under trained gaussian mixture model
+  union { null, float }   vqslod = null;
   union { null, string }  culprit = null;
 }
 
@@ -48,7 +46,7 @@ record ADAMGenotype {
   union { null, ADAMVariant } variant;
 
   // Variant-level "provenance" data, i.e. data shared amongst all concurrently genotyped samples
-  union { null, float } varQual = null;
+  union { null, float } varProbError = null;  // Phred-scaled
 
   union { null, boolean } varIsFiltered = null;  // "null" implies no filters were applied
   array <string> varFilters = null;

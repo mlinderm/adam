@@ -23,7 +23,7 @@ import java.lang.Integer
 import edu.berkeley.cs.amplab.adam.models.{SequenceRecord, SequenceDictionary}
 
 class VariantContextConverterSuite extends FunSuite {
-  val dictionary = SequenceDictionary(SequenceRecord(1, "chr1", 249250621, "file:/ucsc.hg19.fasta", "1b22b98cdeb4a9304cb5d48026a85128"))
+  val dictionary = SequenceDictionary(SequenceRecord(1, "chr1", 249250621, "file://ucsc.hg19.fasta", "1b22b98cdeb4a9304cb5d48026a85128"))
 
   test("Convert site-only SNV") {
     val vc = new VariantContextBuilder()
@@ -46,7 +46,7 @@ class VariantContextConverterSuite extends FunSuite {
     val contig = variant.getContig
     assert(contig.getContigName === "chr1")
     assert(contig.getReferenceLength === 249250621)
-    assert(contig.getReferenceURL === "file:/ucsc.hg19.fasta")
+    assert(contig.getReferenceURL === "file://ucsc.hg19.fasta")
     assert(contig.getReferenceMD5 === "1b22b98cdeb4a9304cb5d48026a85128")
 
     assert(variant.getReferenceAllele === "A")

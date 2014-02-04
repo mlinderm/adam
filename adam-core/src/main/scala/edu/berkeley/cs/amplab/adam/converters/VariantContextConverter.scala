@@ -23,6 +23,50 @@ import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ADAMVariantContex
 import org.broadinstitute.variant.vcf.VCFConstants
 import java.util
 
+object VariantContextConverter {
+  private def attrAsInt(attr: Object):Object = attr match {
+    case a: java.lang.Integer => a
+    case a: String => java.lang.Integer.valueOf(a)
+  }
+  private def attrAsFloat(attr: Object):Object = attr match {
+    case a: java.lang.Float => a
+    case a: java.lang.Double => a
+    case a: String => java.lang.Float.valueOf(a)
+  }
+  private def attrAsString(attr: Object):Object = attr match {
+    case a: String => a
+  }
+  // Recall that the mere
+  private def attrAsBoolean(attr: Object):Object = attr match {
+    case a: java.lang.Boolean => a
+    case a: String => java.lang.Boolean.valueOf(a)
+  }
+
+  private val INFO_MAP: Map[String,(String,Object => Object)] = Map(
+    "ClippingRankSum" -> ("clippingRankSum", attrAsFloat _),
+    VCFConstants.DEPTH_KEY -> ("readDepth", attrAsInt _),
+    VCFConstants.DOWNSAMPLED_KEY -> ("downsampled", attrAsBoolean _),
+    VCFConstants.STRAND_BIAS_KEY -> ("fisherStrandBiasPValue", attrAsFloat _),
+    "HaplotypeScore" -> ("haplotypeScore", attrAsFloat _),
+    "InbreedingCoeff" -> ("inbreedingCoefficient", attrAsFloat _),
+    VCFConstants.RMS_MAPPING_QUALITY_KEY -> ("rmsMapQ", attrAsFloat _),
+    VCFConstants.MAPPING_QUALITY_ZERO_KEY -> ("mapq0Reads", attrAsInt _),
+    "MQRankSum" -> ("mqRankSum", attrAsFloat _),
+    "NEGATIVE_TRAIN_SITE" -> ("usedForNegativeTrainingSet", attrAsBoolean _),
+    "POSITIVE_TRAIN_SITE" -> ("usedForPositiveTrainingSet", attrAsBoolean _),
+    "QD" -> ("variantQualityByDepth", attrAsFloat _),
+    "ReadPosRankSum" -> ("readPositionRankSum", attrAsFloat _),
+    "VQSLOD" -> ("vqslod", attrAsFloat _),
+    "culprit" -> ("culprit", attrAsString _)
+  )
+
+  val VCF2VariantCallAnnotations: Map[String,(Int,Object => Object)] = INFO_MAP.mapValues(adam => {
+    var field = VariantCallingAnnotations.getClassSchema.getField(adam._1)
+    (field.pos, adam._2)
+  })
+
+}
+
 /**
  * This class converts VCF data to and from ADAM. This translation occurs at the abstraction level
  * of the GATK VariantContext which represents VCF data, and at the ADAMVariantContext level, which
@@ -32,7 +76,20 @@ import java.util
  * GATK VariantContext should be implemented in this class.
  */
 private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = None) extends Serializable with Logging {
+  import VariantContextConverter._
+
   initLogging()
+
+  private def convertINFOAttributes(vc: VariantContext): VariantCallingAnnotations = {
+    var call : VariantCallingAnnotations = new VariantCallingAnnotations()
+    for ((v,a) <- VCF2VariantCallAnnotations) {
+      val attr = vc.getAttribute(v)
+      if (attr != null && attr != VCFConstants.MISSING_VALUE_v4) {
+        call.put(a._1, a._2(attr))
+      }
+    }
+    call
+  }
 
   private def convertAllele(allele: Allele): ADAMGenotypeAllele = {
     if (allele.isNoCall) ADAMGenotypeAllele.NoCall
@@ -60,6 +117,7 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       return Seq()
     }
 
+    // VCF CHROM, POS, REF and ALT
     val variant: ADAMVariant = ADAMVariant.newBuilder
       .setContig(contig.build)
       .setPosition(vc.getStart - 1 /* ADAM is 0-indexed */)
@@ -67,15 +125,23 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       .setVariantAllele(vc.getAlternateAllele(0).getBaseString)
       .build
 
+    val shared_genotype_builder: ADAMGenotype.Builder = ADAMGenotype.newBuilder
+      .setVariant(variant)
+
+    // VCF QUAL, FILTER and INFO fields
+    if (vc.hasLog10PError) shared_genotype_builder.setVarProbError(vc.getPhredScaledQual.asInstanceOf[Float])
+    if (vc.isFiltered) {
+      shared_genotype_builder.setVarIsFiltered(vc.isFiltered).setVarFilters(new util.ArrayList(vc.getFilters))
+    }
+    shared_genotype_builder.setVarCallAnno(convertINFOAttributes(vc))
+
+
+    // VCF Genotypes
+    val shared_genotype = shared_genotype_builder.build
     val genotypes: Seq[ADAMGenotype] = vc.getGenotypes.iterator.asScala.map((g: Genotype) => {
-      val genotype: ADAMGenotype.Builder = ADAMGenotype.newBuilder
-        .setVariant(variant)
+      val genotype: ADAMGenotype.Builder = ADAMGenotype.newBuilder(shared_genotype)
         .setSampleId(g.getSampleName)
         .setAlleles(g.getAlleles.asScala.map(convertAllele(_)).asJava)
-
-      if (vc.isFiltered) {
-        genotype.setVarIsFiltered(vc.isFiltered).setVarFilters(new util.ArrayList(vc.getFilters))
-      }
 
       if (g.hasGQ) genotype.setGtQuality(g.getGQ)
       if (g.hasDP) genotype.setReadDepth(g.getDP)
@@ -92,9 +158,9 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
 
       genotype.setIsPhased(g.isPhased)
       if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
-        genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf[java.lang.Integer])
+        genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf[Int])
       if (g.hasExtendedAttribute(VCFConstants.PHASE_SET_KEY))
-        genotype.setPhaseSetId(g.getExtendedAttribute(VCFConstants.PHASE_SET_KEY).asInstanceOf[CharSequence])
+        genotype.setPhaseSetId(g.getExtendedAttribute(VCFConstants.PHASE_SET_KEY).asInstanceOf[String])
 
       genotype.build
     }).toSeq
