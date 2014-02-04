@@ -24,11 +24,17 @@ class ADAMVariationContextSuite extends SparkFunSuite {
   sparkTest("can read a small .vcf file") {
     val path = ClassLoader.getSystemClassLoader.getResource("small.vcf").getFile
     // TODO: Why doesn't implict work here?
-    val VCs: RDD[ADAMVariantContext] = ADAMVariationContext.sparkContextToADAMVariationContext(sc).adamVCFLoad(path)
-    assert(VCs.count === 5)
+    val vcs: RDD[ADAMVariantContext] = ADAMVariationContext.sparkContextToADAMVariationContext(sc).adamVCFLoad(path)
+    assert(vcs.count === 5)
 
-    val VC = VCs.first
-    assert(VC.genotypes.length === 3)
+    val vc = vcs.first
+    assert(vc.genotypes.length === 3)
+
+    val gt = vc.genotypes.head
+    assert(gt.getVarCallAnno != null)
+    assert(gt.getVarCallAnno.getReadDepth === 69)
+    // Recall we are testing parsing, so we assert that our value is the same as should have been parsed
+    assert(gt.getVarCallAnno.getClippingRankSum === java.lang.Float.valueOf("0.138"))
   }
 
 }
