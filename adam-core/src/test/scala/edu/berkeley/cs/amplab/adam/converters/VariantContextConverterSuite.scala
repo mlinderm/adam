@@ -21,9 +21,16 @@ import org.scalatest.FunSuite
 import org.broadinstitute.variant.variantcontext.{Allele, VariantContextBuilder, GenotypeBuilder}
 import java.lang.Integer
 import edu.berkeley.cs.amplab.adam.models.{SequenceRecord, SequenceDictionary}
+import edu.berkeley.cs.amplab.adam.avro.ADAMGenotypeAllele
 
 class VariantContextConverterSuite extends FunSuite {
   val dictionary = SequenceDictionary(SequenceRecord(1, "chr1", 249250621, "file://ucsc.hg19.fasta", "1b22b98cdeb4a9304cb5d48026a85128"))
+
+  def snvBuilder: VariantContextBuilder = new VariantContextBuilder()
+    .alleles(List(Allele.create("A",true), Allele.create("T")).asJavaCollection)
+    .start(1L)
+    .stop(1L)
+    .chr("chr1")
 
   test("Convert site-only SNV") {
     val vc = new VariantContextBuilder()
@@ -54,27 +61,48 @@ class VariantContextConverterSuite extends FunSuite {
   }
 
   test("Convert genotypes with phase information") {
-    val vcb = new VariantContextBuilder()
-      .alleles(List(Allele.create("A",true), Allele.create("T")).asJavaCollection)
-      .start(1L)
-      .stop(1L)
-      .chr("chr1")
+    val vcb = snvBuilder
 
     val genotypeAttributes = JavaConversions.mapAsJavaMap(Map[String, Object]("PQ" -> new Integer(50), "PS" -> "1"))
-    val genotype = GenotypeBuilder.create("NA12878", vcb.getAlleles(), genotypeAttributes)
-    val vc = vcb.genotypes(List(genotype).asJavaCollection).make()
+    val vc = vcb.genotypes(GenotypeBuilder.create("NA12878", vcb.getAlleles(), genotypeAttributes)).make()
 
     val converter = new VariantContextConverter(Some(dictionary))
 
     val adamVCs = converter.convert(vc)
     assert(adamVCs.length === 1)
-    val adamVC = adamVCs.head
 
-    assert(adamVC.genotypes.length === 1)
-
-    val variant = adamVC.variant
-    assert(variant.getReferenceAllele === "A")
-    assert(variant.getPosition === 0L)
+    val adamGTs = adamVCs.flatMap(_.genotypes)
+    assert(adamGTs.length === 1)
+    val adamGT = adamGTs.head
+    assert(adamGT.getAlleles.asScala.sameElements(List(ADAMGenotypeAllele.Ref, ADAMGenotypeAllele.Alt)))
+    assert(adamGT.getPhaseSetId === "1")
+    assert(adamGT.getPhaseQuality === 50)
   }
 
+  test("PASSing variants") {
+    val vcb = snvBuilder
+    vcb.genotypes(GenotypeBuilder.create("NA12878", vcb.getAlleles))
+    vcb.passFilters()
+
+    val converter = new VariantContextConverter(Some(dictionary))
+
+    val adamVCs = converter.convert(vcb.make)
+    val adamGT = adamVCs.flatMap(_.genotypes).head
+
+    assert(adamGT.getVarIsFiltered === false)
+  }
+
+  test("non PASSing variants") {
+    val vcb = snvBuilder
+    vcb.genotypes(GenotypeBuilder.create("NA12878", vcb.getAlleles))
+    vcb.filter("LowMQ")
+
+    val converter = new VariantContextConverter(Some(dictionary))
+
+    val adamVCs = converter.convert(vcb.make)
+    val adamGT = adamVCs.flatMap(_.genotypes).head
+
+    assert(adamGT.getVarIsFiltered === true)
+    assert(adamGT.getVarFilters.asScala.sameElements(List("LowMQ")))
+  }
 }
