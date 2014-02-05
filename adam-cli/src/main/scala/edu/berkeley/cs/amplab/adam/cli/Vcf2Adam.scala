@@ -51,7 +51,7 @@ class Vcf2Adam(val args: Vcf2AdamArgs) extends AdamSparkCommand[Vcf2AdamArgs] wi
   def run(sc: SparkContext, job: Job) {
     
     var adamVariants : RDD[ADAMVariantContext] = sc.adamVCFLoad(args.vcfFile)
-    adamVariants.map(p => p.variant).adamSave(args.outputPath, blockSize = args.blockSize, pageSize = args.pageSize,
+    adamVariants.flatMap(p => p.genotypes).adamSave(args.outputPath, blockSize = args.blockSize, pageSize = args.pageSize,
       compressCodec = args.compressionCodec, disableDictionaryEncoding = args.disableDictionary)
   }
 }
