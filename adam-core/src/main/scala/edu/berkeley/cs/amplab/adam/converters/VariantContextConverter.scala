@@ -15,9 +15,9 @@
  */
 package edu.berkeley.cs.amplab.adam.converters
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import org.apache.spark.Logging
-import org.broadinstitute.variant.variantcontext.{Allele, Genotype, VariantContext}
+import org.broadinstitute.variant.variantcontext._
 import edu.berkeley.cs.amplab.adam.avro._
 import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ADAMVariantContext}
 import org.broadinstitute.variant.vcf.VCFConstants
@@ -97,13 +97,29 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
     else ADAMGenotypeAllele.Alt
   }
 
+  private def convertAllele(allele: CharSequence, isRef: Boolean = false): Seq[Allele] = {
+    if (allele == null) Seq() else Seq(Allele.create(allele.toString, isRef))
+  }
+
+  private def convertAlleles(v: ADAMVariant): java.util.Collection[Allele] = {
+    convertAllele(v.getReferenceAllele, true) ++ convertAllele(v.getVariantAllele)
+  }
+
+  private def convertAlleles(g: ADAMGenotype): java.util.List[Allele] = {
+    g.getAlleles.map(a => a match {
+      case ADAMGenotypeAllele.NoCall => Allele.NO_CALL
+      case ADAMGenotypeAllele.Ref => Allele.create(g.getVariant.getReferenceAllele.toString, true)
+      case ADAMGenotypeAllele.Alt => Allele.create(g.getVariant.getVariantAllele.toString)
+    })
+  }
+
   /**
    * Converts a single GATK variant into ADAMVariantContext(s).
    *
    * @param vc GATK Variant context to convert.
    * @return ADAM variant contexts
    */
-  def convert(vc: VariantContext): Seq[ADAMVariantContext] = {
+  def convert(vc:VariantContext): Seq[ADAMVariantContext] = {
 
     val contig: ADAMContig.Builder = ADAMContig.newBuilder().setContigName(vc.getChr)
     if (dict.isDefined) {
@@ -139,10 +155,10 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
 
     // VCF Genotypes
     val shared_genotype = shared_genotype_builder.build
-    val genotypes: Seq[ADAMGenotype] = vc.getGenotypes.iterator.asScala.map((g: Genotype) => {
+    val genotypes: Seq[ADAMGenotype] = vc.getGenotypes.map((g: Genotype) => {
       val genotype: ADAMGenotype.Builder = ADAMGenotype.newBuilder(shared_genotype)
         .setSampleId(g.getSampleName)
-        .setAlleles(g.getAlleles.asScala.map(convertAllele(_)).asJava)
+        .setAlleles(g.getAlleles.map(convertAllele(_)))
 
       if (g.hasGQ) genotype.setGtQuality(g.getGQ)
       if (g.hasDP) genotype.setReadDepth(g.getDP)
@@ -152,8 +168,7 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
         genotype.setRefReadDepth(ad(0)).setAltReadDepth(ad(1))
       }
       if (g.isFiltered) {
-        // TODO: There has got be a better way to deal with the types here...
-        genotype.setGtIsFiltered(true).setGtFilters(new util.ArrayList(g.getFilters.split(';').toList.asJava))
+        genotype.setGtIsFiltered(true).setGtFilters(g.getFilters.split(';').toList)
       } else
         genotype.setGtIsFiltered(false)
 
@@ -167,6 +182,29 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
     }).toSeq
 
     Seq(ADAMVariantContext(variant, genotypes = genotypes))
+  }
+
+  /**
+   * Convert an ADAMVariantContext into the equivalent GATK VariantContext
+   * @param vc
+   * @return GATK VariantContext
+   */
+  def convert(vc:ADAMVariantContext):VariantContext = {
+    val vcb = new VariantContextBuilder()
+      .chr(vc.variant.getContig.getContigName.toString)
+      .start(vc.variant.getPosition + 1 /* Recall ADAM is 0-indexed */)
+      .stop(vc.variant.getPosition + 1 + vc.variant.getReferenceAllele.length - 1)
+      .alleles(convertAlleles(vc.variant))
+
+    vc.databases.flatMap(d => Option(d.getDbsnpId)).foreach(d => vcb.id("rs" + d))
+
+    // TODO: Extract provenance INFO fields
+    vcb.genotypes(vc.genotypes.map(g => {
+      val gb = new GenotypeBuilder(g.getSampleId.toString, convertAlleles(g))
+      gb.make
+    }))
+
+    vcb.make
   }
 
 }
