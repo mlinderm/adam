@@ -130,9 +130,10 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
 
     // VCF QUAL, FILTER and INFO fields
     if (vc.hasLog10PError) shared_genotype_builder.setVarProbError(vc.getPhredScaledQual.asInstanceOf[Float])
-    if (vc.isFiltered) {
+    if (vc.isFiltered) { // not PASSing
       shared_genotype_builder.setVarIsFiltered(vc.isFiltered).setVarFilters(new util.ArrayList(vc.getFilters))
-    }
+    } else if (vc.filtersWereApplied) // PASSing
+      shared_genotype_builder.setVarIsFiltered(false)
     shared_genotype_builder.setVarCallAnno(convertINFOAttributes(vc))
 
 
