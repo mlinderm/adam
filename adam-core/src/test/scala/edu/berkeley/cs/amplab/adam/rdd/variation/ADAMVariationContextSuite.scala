@@ -19,6 +19,7 @@ package edu.berkeley.cs.amplab.adam.rdd.variation
 import org.apache.spark.rdd.RDD
 import edu.berkeley.cs.amplab.adam.util.SparkFunSuite
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
+import java.lang.Float
 
 class ADAMVariationContextSuite extends SparkFunSuite {
   sparkTest("can read a small .vcf file") {
@@ -31,10 +32,12 @@ class ADAMVariationContextSuite extends SparkFunSuite {
     assert(vc.genotypes.length === 3)
 
     val gt = vc.genotypes.head
-    assert(gt.getVarCallAnno != null)
-    assert(gt.getVarCallAnno.getReadDepth === 69)
-    // Recall we are testing parsing, so we assert that our value is the same as should have been parsed
-    assert(gt.getVarCallAnno.getClippingRankSum === java.lang.Float.valueOf("0.138"))
+    assert(gt.getVariantCallingAnnotations != null)
+    assert(gt.getVariantCallingAnnotations.getReadDepth === 69)
+    // Recall we are testing parsing, so we assert that our value is
+    // the same as should have been parsed
+    assert(gt.getVariantCallingAnnotations.getClippingRankSum === 
+      Float.valueOf("0.138"))
   }
 
 }

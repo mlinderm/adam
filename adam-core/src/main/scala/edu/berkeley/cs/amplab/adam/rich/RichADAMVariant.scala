@@ -27,7 +27,7 @@ object RichADAMVariant {
 class RichADAMVariant(val variant: ADAMVariant) {
  // Only include the contigName in the hash
   val hashObjects = Array[Object](variant.getContig.getContigName, 
-    variant.getPosition, variant.getReferenceAllele, variant.getVariantAllele)
+    variant.getPosition, variant.getReferenceAlleles, variant.getVariantAlleles)
   override def hashCode = util.Arrays.hashCode(hashObjects)
 
   private def isSameContig(left: ADAMContig, right: ADAMContig): Boolean = {
@@ -40,8 +40,8 @@ class RichADAMVariant(val variant: ADAMVariant) {
     case that: RichADAMVariant => {
       variant.getPosition        == that.variant.getPosition  &&
       isSameContig(variant.getContig, that.variant.getContig) &&
-      variant.getReferenceAllele == that.variant.getReferenceAllele &&
-      variant.getVariantAllele   == that.variant.getVariantAllele
+      variant.getReferenceAlleles.equals(that.variant.getReferenceAlleles) &&
+      variant.getVariantAlleles.equals(that.variant.getVariantAlleles)
     }
     case _ => false
   }

@@ -17,14 +17,18 @@
 package edu.berkeley.cs.amplab.adam.rich
 
 import org.scalatest.FunSuite
-import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMContig}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMContig, Base}
+import scala.collection.JavaConverters._
 
 class RichADAMVariantSuite extends FunSuite {
   test("Equality without reference MD5") {
-    val c1 = ADAMContig.newBuilder().setContigName("chr1").setReferenceMD5("1b22b98cdeb4a9304cb5d48026a85128").build
-    val c2 = ADAMContig.newBuilder().setContigName("chr1").build()
+    val c1 = ADAMContig.newBuilder().setContigName("chr1")
+      .setReferenceMD5("1b22b98cdeb4a9304cb5d48026a85128").build
+    val c2 = ADAMContig.newBuilder().setContigName("chr1").build
 
-    val v1 = ADAMVariant.newBuilder().setContig(c1).setPosition(1).setReferenceAllele("A").setVariantAllele("T").build
+    val v1 = ADAMVariant.newBuilder().setContig(c1).setPosition(1)
+      .setReferenceAlleles(List(Base.A).asJava)
+      .setVariantAlleles(List(Base.T).asJava).build
     val v2 = ADAMVariant.newBuilder(v1).setContig(c2).build
 
     assert(v1 != v2)
@@ -37,10 +41,14 @@ class RichADAMVariantSuite extends FunSuite {
   }
 
   test("Equality with reference MD5") {
-    val c1 = ADAMContig.newBuilder().setContigName("chr1").setReferenceMD5("1b22b98cdeb4a9304cb5d48026a85128").build
-    val c2 = ADAMContig.newBuilder().setContigName("chr1").setReferenceMD5("1b22b98cdeb4a9304cb5d48026a85127").build
+    val c1 = ADAMContig.newBuilder().setContigName("chr1")
+      .setReferenceMD5("1b22b98cdeb4a9304cb5d48026a85128").build
+    val c2 = ADAMContig.newBuilder().setContigName("chr1")
+      .setReferenceMD5("1b22b98cdeb4a9304cb5d48026a85127").build
 
-    val v1 = ADAMVariant.newBuilder().setContig(c1).setPosition(1).setReferenceAllele("A").setVariantAllele("T").build
+    val v1 = ADAMVariant.newBuilder().setContig(c1).setPosition(1)
+      .setReferenceAlleles(List(Base.A).asJava)
+      .setVariantAlleles(List(Base.T).asJava).build
     val v2 = ADAMVariant.newBuilder(v1).setContig(c2).build
 
     assert(v1 != v2)

@@ -21,6 +21,8 @@ import edu.berkeley.cs.amplab.adam.avro._
 import org.apache.spark.rdd.RDD
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 import edu.berkeley.cs.amplab.adam.rdd.variation.ADAMVariationContext._
+import scala.collection.JavaConverters._
+import edu.berkeley.cs.amplab.adam.avro.Base
 
 class ADAMVariantContextRDDFunctionsSuite extends SparkFunSuite {
 
@@ -28,8 +30,8 @@ class ADAMVariantContextRDDFunctionsSuite extends SparkFunSuite {
     val v0 = ADAMVariant.newBuilder
       .setContig(ADAMContig.newBuilder.setContigName("11").build)
       .setPosition(17409572)
-      .setReferenceAllele("T")
-      .setVariantAllele("C")
+      .setReferenceAlleles(List(Base.T).asJava)
+      .setVariantAlleles(List(Base.C).asJava)
       .build
 
     val vc: RDD[ADAMVariantContext] = sc.parallelize(List(

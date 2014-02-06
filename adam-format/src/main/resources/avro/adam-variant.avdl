@@ -1,10 +1,29 @@
+
 @namespace("edu.berkeley.cs.amplab.adam.avro")
 protocol ADAM {
-import idl "adam.avdl";
+
+enum Base {
+    A,
+    C,
+    T,
+    G,
+    U,
+    N, // any
+    X, // any
+    K, // keto: G/T
+    M, // aMino: A/C
+    R, // puRine: A/G
+    Y, // pYriminidine: C/T
+    S, // Strong: C/G
+    W, // Weak: A/T
+    B, // not A
+    V, // not T
+    H, // not G
+    D  // not C
+}
 
 record ADAMContig {
   union { null, string } contigName;
-
   union { null, long }   referenceLength = null;
   union { null, string } referenceURL = null;
   union { null, string } referenceMD5 = null;
@@ -13,24 +32,27 @@ record ADAMContig {
 record ADAMVariant {
   union { null, ADAMContig } contig;
   union { null, long }       position;
-  union { null, string }     referenceAllele;
-  union { null, string }     variantAllele = null;
+  array<Base> referenceAlleles;
+  array<Base> variantAlleles;
 }
 
 enum ADAMGenotypeAllele {
   Ref, Alt, NoCall
 }
 
-// This record represents all of the variant "calling" annotations that are typically included in the
-// VCF INFO field. These attributes capture the variant calling "environment" in which this genotype was called.
+// This record represents all stats that, inside a VCF, are stored outside of the
+// sample but are computed based on the samples.  For instance,  MAPQ0 is an aggregate
+// stat computed from all samples and stored inside the INFO line.
 record VariantCallingAnnotations {
   union { null, float }   baseQRankSum = null;
   union { null, float }   clippingRankSum = null;
   union { null, int }     readDepth = null;
   union { null, boolean } downsampled = null;
-  union { null, float }   fisherStrandBiasPValue = null; // phred-scaled.
+  union { null, float }   fisherStrandBiasPValue = null; // Phred-scaled.
   union { null, float }   haplotypeScore = null;
   union { null, float }   inbreedingCoefficient = null;
+  array<int>              alleleCountMLE;
+  array<int>              alleleFrequencyMLE;
   union { null, float }   rmsMapQ = null;
   union { null, int }     mapq0Reads = null;
   union { null, float }   mqRankSum = null;
@@ -38,7 +60,7 @@ record VariantCallingAnnotations {
   union { null, boolean } usedForPositiveTrainingSet = null;
   union { null, float }   variantQualityByDepth = null;
   union { null, float }   readPositionRankSum = null;
-  union { null, float }   vqslod = null;
+  union { null, float }   vqslod = null; // log odds ratio of being a true vs false variant under trained gaussian mixture model
   union { null, string }  culprit = null;
 }
 
@@ -51,28 +73,33 @@ record ADAMGenotype {
   union { null, boolean } varIsFiltered = null;  // "null" implies no filters were applied
   array <string> varFilters = null;
 
-  union { null, VariantCallingAnnotations } varCallAnno = null;
+  union { null, VariantCallingAnnotations } variantCallingAnnotations = null;
 
   // Sample-level data, i.e. data specific to this particular sample
   union { null, string } sampleId = null;
 
+  // Length is equal to the ploidy
   array <ADAMGenotypeAllele> alleles = null;
 
   union { null, boolean } isPhased = null;
   union { null, string }  phaseSetId = null;
   union { null, int }     phaseQuality = null;
-  union { null, int }     refReadDepth = null;
-  union { null, int }     altReadDepth = null;
+  union { null, int }     referenceReadDepth = null;
+  union { null, int }     alternateReadDepth = null;
   union { null, int }     readDepth = null;
-  union { null, int }     gtQuality = null;
+  union { null, int }     genotypeQuality = null;
 
-  union { null, boolean } gtIsFiltered = null; // "null" implies no filters were applied
+  union { null, boolean } gtIsFiltered = null;
   array<string> gtFilters = null;
 
-  array<int> genotypeLikelihoods = null;
+  array<int> genotypeLikelihoods = null; // Phred-scaled. Always length 3 since we are not multiallelic.
 
-  // All variants are bi-allelic. Was this record split-off from multi-allelic call?
+
+  // In the ADAM world we split multiallelic VCF lines into multiple
+  // single-alternate records.  This bit is set if that happened for this
+  // record.
   boolean splitFromMultiAllelic = false;
+
 }
 
 record ADAMDatabaseVariantAnnotation {

@@ -22,6 +22,7 @@ import org.broadinstitute.variant.variantcontext.{Allele, VariantContextBuilder,
 import java.lang.Integer
 import edu.berkeley.cs.amplab.adam.models.{SequenceRecord, SequenceDictionary}
 import edu.berkeley.cs.amplab.adam.avro.ADAMGenotypeAllele
+import edu.berkeley.cs.amplab.adam.avro.Base
 
 class VariantContextConverterSuite extends FunSuite {
   val dictionary = SequenceDictionary(SequenceRecord(1, "chr1", 249250621, "file://ucsc.hg19.fasta", "1b22b98cdeb4a9304cb5d48026a85128"))
@@ -56,7 +57,7 @@ class VariantContextConverterSuite extends FunSuite {
     assert(contig.getReferenceURL === "file://ucsc.hg19.fasta")
     assert(contig.getReferenceMD5 === "1b22b98cdeb4a9304cb5d48026a85128")
 
-    assert(variant.getReferenceAllele === "A")
+    assert(variant.getReferenceAlleles.contains(Base.A))
     assert(variant.getPosition === 0L)
   }
 

@@ -20,6 +20,7 @@ import org.apache.spark.Logging
 import org.broadinstitute.variant.variantcontext.{Allele, Genotype, VariantContext}
 import edu.berkeley.cs.amplab.adam.avro._
 import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ADAMVariantContext}
+import edu.berkeley.cs.amplab.adam.util.VcfStringUtils._
 import org.broadinstitute.variant.vcf.VCFConstants
 import java.util
 
@@ -121,20 +122,27 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
     val variant: ADAMVariant = ADAMVariant.newBuilder
       .setContig(contig.build)
       .setPosition(vc.getStart - 1 /* ADAM is 0-indexed */)
-      .setReferenceAllele(vc.getReference.getBaseString)
-      .setVariantAllele(vc.getAlternateAllele(0).getBaseString)
+      .setReferenceAlleles(strToEnumList[Base](
+        vc.getReference.getBaseString).asJava)
+      .setVariantAlleles(strToEnumList[Base](
+        vc.getAlternateAllele(0).getBaseString).asJava)
       .build
 
     val shared_genotype_builder: ADAMGenotype.Builder = ADAMGenotype.newBuilder
       .setVariant(variant)
 
     // VCF QUAL, FILTER and INFO fields
-    if (vc.hasLog10PError) shared_genotype_builder.setVarProbError(vc.getPhredScaledQual.asInstanceOf[Float])
+    if (vc.hasLog10PError) {
+      shared_genotype_builder.setVarProbError(vc.getPhredScaledQual.asInstanceOf[Float])
+    }
+
     if (vc.isFiltered) { // not PASSing
-      shared_genotype_builder.setVarIsFiltered(vc.isFiltered).setVarFilters(new util.ArrayList(vc.getFilters))
-    } else if (vc.filtersWereApplied) // PASSing
+      shared_genotype_builder.setVarIsFiltered(vc.isFiltered).setVarFilters(
+        new util.ArrayList(vc.getFilters))
+    } else if (vc.filtersWereApplied) { // PASSing
       shared_genotype_builder.setVarIsFiltered(false)
-    shared_genotype_builder.setVarCallAnno(convertINFOAttributes(vc))
+    }
+    shared_genotype_builder.setVariantCallingAnnotations(convertINFOAttributes(vc))
 
 
     // VCF Genotypes
@@ -144,18 +152,20 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
         .setSampleId(g.getSampleName)
         .setAlleles(g.getAlleles.asScala.map(convertAllele(_)).asJava)
 
-      if (g.hasGQ) genotype.setGtQuality(g.getGQ)
+      if (g.hasGQ) genotype.setGenotypeQuality(g.getGQ)
       if (g.hasDP) genotype.setReadDepth(g.getDP)
       if (g.hasAD) {
         val ad = g.getAD
         assert(ad.length == 2, "Unexpected number of allele depths for biallelic variant")
-        genotype.setRefReadDepth(ad(0)).setAltReadDepth(ad(1))
+        genotype.setReferenceReadDepth(ad(0)).setAlternateReadDepth(ad(1))
       }
       if (g.isFiltered) {
         // TODO: There has got be a better way to deal with the types here...
-        genotype.setGtIsFiltered(true).setGtFilters(new util.ArrayList(g.getFilters.split(';').toList.asJava))
-      } else
+        genotype.setGtIsFiltered(true).setGtFilters(
+          new util.ArrayList(g.getFilters.split(';').toList.asJava))
+      } else {
         genotype.setGtIsFiltered(false)
+      }
 
       genotype.setIsPhased(g.isPhased)
       if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
