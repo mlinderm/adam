@@ -36,6 +36,10 @@ class ADAMVariantContextRDDFunctions(rdd: RDD[ADAMVariantContext]) extends Seria
       .values
       .map { case (v:ADAMVariantContext, a) => new ADAMVariantContext(v.variant, v.genotypes, databases = a) }
   }
+
+  def sampleNames(): RDD[String] = {
+    rdd.flatMap(_.genotypes.map(_.getSampleId)).distinct.map(_.toString)
+  }
 }
 
 class ADAMGenotypeRDDFunctions(rdd: RDD[ADAMGenotype]) extends Serializable with Logging {

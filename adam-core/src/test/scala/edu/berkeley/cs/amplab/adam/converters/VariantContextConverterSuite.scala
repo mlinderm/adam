@@ -62,7 +62,7 @@ class VariantContextConverterSuite extends FunSuite {
   test("Convert GATK SNV w/ genotypes w/ phase information to ADAM") {
     val vcb = gatkSNVBuilder
 
-    val genotypeAttributes = Map[String, Object]("PQ" -> new Integer(50), "PS" -> "1")
+    val genotypeAttributes = Map[String, Object]("PQ" -> new Integer(50), "PS" -> new Integer(1))
     val vc = vcb.genotypes(GenotypeBuilder.create("NA12878", vcb.getAlleles(), genotypeAttributes)).make()
 
     val converter = new VariantContextConverter(Some(dictionary))
@@ -74,7 +74,7 @@ class VariantContextConverterSuite extends FunSuite {
     assert(adamGTs.length === 1)
     val adamGT = adamGTs.head
     assert(adamGT.getAlleles.sameElements(List(ADAMGenotypeAllele.Ref, ADAMGenotypeAllele.Alt)))
-    assert(adamGT.getPhaseSetId === "1")
+    assert(adamGT.getPhaseSetId === 1)
     assert(adamGT.getPhaseQuality === 50)
   }
 

@@ -20,18 +20,24 @@ import org.apache.spark.Logging
 import org.broadinstitute.variant.variantcontext._
 import edu.berkeley.cs.amplab.adam.avro._
 import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ADAMVariantContext}
-import org.broadinstitute.variant.vcf.VCFConstants
+import org.broadinstitute.variant.vcf._
 import java.util
 
 object VariantContextConverter {
   private def attrAsInt(attr: Object):Object = attr match {
-    case a: java.lang.Integer => a
     case a: String => java.lang.Integer.valueOf(a)
+    case a: java.lang.Integer => a
+    case a: java.lang.Number => java.lang.Integer.valueOf(a.intValue)
+  }
+  private def attrAsLong(attr: Object):Object = attr match {
+    case a: String => java.lang.Integer.valueOf(a)
+    case a: java.lang.Long => a
+    case a: java.lang.Number => java.lang.Long.valueOf(a.longValue)
   }
   private def attrAsFloat(attr: Object):Object = attr match {
-    case a: java.lang.Float => a
-    case a: java.lang.Double => a
     case a: String => java.lang.Float.valueOf(a)
+    case a: java.lang.Float => a
+    case a: java.lang.Number => java.lang.Float.valueOf(a.floatValue)
   }
   private def attrAsString(attr: Object):Object = attr match {
     case a: String => a
@@ -42,47 +48,59 @@ object VariantContextConverter {
     case a: String => java.lang.Boolean.valueOf(a)
   }
 
-  private val INFO_MAP: Map[String,(String,Object => Object)] = Map(
-    "ClippingRankSum" -> ("clippingRankSum", attrAsFloat _),
-    VCFConstants.DEPTH_KEY -> ("readDepth", attrAsInt _),
-    VCFConstants.DOWNSAMPLED_KEY -> ("downsampled", attrAsBoolean _),
-    VCFConstants.STRAND_BIAS_KEY -> ("fisherStrandBiasPValue", attrAsFloat _),
-    "HaplotypeScore" -> ("haplotypeScore", attrAsFloat _),
-    "InbreedingCoeff" -> ("inbreedingCoefficient", attrAsFloat _),
-    VCFConstants.RMS_MAPPING_QUALITY_KEY -> ("rmsMapQ", attrAsFloat _),
-    VCFConstants.MAPPING_QUALITY_ZERO_KEY -> ("mapq0Reads", attrAsInt _),
-    "MQRankSum" -> ("mqRankSum", attrAsFloat _),
-    "NEGATIVE_TRAIN_SITE" -> ("usedForNegativeTrainingSet", attrAsBoolean _),
-    "POSITIVE_TRAIN_SITE" -> ("usedForPositiveTrainingSet", attrAsBoolean _),
-    "QD" -> ("variantQualityByDepth", attrAsFloat _),
-    "ReadPosRankSum" -> ("readPositionRankSum", attrAsFloat _),
-    "VQSLOD" -> ("vqslod", attrAsFloat _),
-    "culprit" -> ("culprit", attrAsString _)
+
+  private case class AttrKey(adamKey: String, attrConverter: (Object => Object), hdrLine: VCFCompoundHeaderLine) {
+    val vcfKey: String = hdrLine.getID
+  }
+
+  private val INFO_KEYS: Seq[AttrKey] = Seq(
+    AttrKey("clippingRankSum", attrAsFloat _, new VCFInfoHeaderLine("ClippingRankSum", 1, VCFHeaderLineType.Float, "Z-score From Wilcoxon rank sum test of Alt vs. Ref number of hard clipped bases")),
+    AttrKey("readDepth", attrAsInt _, VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY)),
+    AttrKey("downsampled", attrAsBoolean _, VCFStandardHeaderLines.getInfoLine(VCFConstants.DOWNSAMPLED_KEY)),
+    AttrKey("fisherStrandBiasPValue", attrAsFloat _, VCFStandardHeaderLines.getInfoLine(VCFConstants.STRAND_BIAS_KEY)),
+    AttrKey("haplotypeScore", attrAsFloat _, new VCFInfoHeaderLine("HaplotypeScore", 1, VCFHeaderLineType.Float, "Consistency of the site with at most two segregating haplotypes")),
+    AttrKey("inbreedingCoefficient", attrAsFloat _, new VCFInfoHeaderLine("InbreedingCoeff", 1, VCFHeaderLineType.Float, "Inbreeding coefficient as estimated from the genotype likelihoods per-sample when compared against the Hardy-Weinberg expectation")),
+    AttrKey("rmsMapQ", attrAsFloat _, VCFStandardHeaderLines.getInfoLine(VCFConstants.RMS_MAPPING_QUALITY_KEY)),
+    AttrKey("mapq0Reads", attrAsInt _, VCFStandardHeaderLines.getInfoLine(VCFConstants.MAPPING_QUALITY_ZERO_KEY)),
+    AttrKey("mqRankSum", attrAsFloat _, new VCFInfoHeaderLine("MQRankSum", 1, VCFHeaderLineType.Float, "Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities")),
+    AttrKey("usedForNegativeTrainingSet", attrAsBoolean _, new VCFInfoHeaderLine("NEGATIVE_TRAIN_SITE", 1, VCFHeaderLineType.Flag, "This variant was used to build the negative training set of bad variants")),
+    AttrKey("usedForPositiveTrainingSet", attrAsBoolean _, new VCFInfoHeaderLine("POSITIVE_TRAIN_SITE", 1, VCFHeaderLineType.Flag, "This variant was used to build the positive training set of good variants")),
+    AttrKey("variantQualityByDepth", attrAsFloat _, new VCFInfoHeaderLine("QD", 1, VCFHeaderLineType.Float, "Variant Confidence/Quality by Depth")),
+    AttrKey("readPositionRankSum", attrAsFloat _, new VCFInfoHeaderLine("ReadPosRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias")),
+    AttrKey("vqslod", attrAsFloat _, new VCFInfoHeaderLine("VQSLOD", 1, VCFHeaderLineType.Float, "Log odds ratio of being a true variant versus being false under the trained gaussian mixture model")),
+    AttrKey("culprit", attrAsString _, new VCFInfoHeaderLine("culprit", 1, VCFHeaderLineType.String, "The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out"))
   )
 
-  val VCF2VariantCallAnnotations: Map[String,(Int,Object => Object)] = INFO_MAP.mapValues(adam => {
-    var field = VariantCallingAnnotations.getClassSchema.getField(adam._1)
-    (field.pos, adam._2)
-  })
+  private val FORMAT_KEYS: Seq[AttrKey] = Seq(
+    AttrKey("alleles", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY)),
+    AttrKey("gtQuality", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY)),
+    AttrKey(null, null, VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY)),
+    AttrKey("alleleDepths", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)),
+    AttrKey("gtFilters", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY)),
+    AttrKey("phaseQuality", attrAsInt _, new VCFFormatHeaderLine(VCFConstants.PHASE_QUALITY_KEY, 1, VCFHeaderLineType.Float, "Read-backed phasing quality")),
+    AttrKey("phaseSetId", attrAsLong _, new VCFFormatHeaderLine(VCFConstants.PHASE_SET_KEY, 1, VCFHeaderLineType.Integer, "Phase set"))
+  )
+  
+  lazy val infoHeaderLines : Seq[VCFCompoundHeaderLine] = INFO_KEYS.map(_.hdrLine)
+  lazy val formatHeaderLines : Seq[VCFCompoundHeaderLine] = FORMAT_KEYS.map(_.hdrLine)
 
-}
+  lazy val VCF2VarCallAnnos : Map[String,(Int,Object => Object)] = INFO_KEYS.map(field => {
+    var avro_field = VariantCallingAnnotations.getClassSchema.getField(field.adamKey)
+    field.vcfKey -> (avro_field.pos, field.attrConverter)
+  })(collection.breakOut)
 
-/**
- * This class converts VCF data to and from ADAM. This translation occurs at the abstraction level
- * of the GATK VariantContext which represents VCF data, and at the ADAMVariantContext level, which
- * aggregates ADAM variant/genotype/annotation data together.
- *
- * If an annotation has a corresponding set of fields in the VCF standard, a conversion to/from the
- * GATK VariantContext should be implemented in this class.
- */
-private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = None) extends Serializable with Logging {
-  import VariantContextConverter._
+  lazy val VCF2GTAnnos : Map[String,(Int,Object => Object)] = FORMAT_KEYS
+    .filter(attr => attr.adamKey != null && attr.attrConverter != null)
+    .map(field => {
+      var avro_field = ADAMGenotype.getClassSchema.getField(field.adamKey)
+      field.vcfKey -> (avro_field.pos, field.attrConverter)
+    })(collection.breakOut)
 
-  initLogging()
 
-  private def convertINFOAttributes(vc: VariantContext): VariantCallingAnnotations = {
+
+  private def convertAttributes(vc: VariantContext): VariantCallingAnnotations = {
     var call : VariantCallingAnnotations = new VariantCallingAnnotations()
-    for ((v,a) <- VCF2VariantCallAnnotations) {
+    for ((v,a) <- VCF2VarCallAnnos) {
       val attr = vc.getAttribute(v)
       if (attr != null && attr != VCFConstants.MISSING_VALUE_v4) {
         call.put(a._1, a._2(attr))
@@ -112,6 +130,23 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       case ADAMGenotypeAllele.Alt => Allele.create(g.getVariant.getVariantAllele.toString)
     })
   }
+
+}
+
+/**
+ * This class converts VCF data to and from ADAM. This translation occurs at the abstraction level
+ * of the GATK VariantContext which represents VCF data, and at the ADAMVariantContext level, which
+ * aggregates ADAM variant/genotype/annotation data together.
+ *
+ * If an annotation has a corresponding set of fields in the VCF standard, a conversion to/from the
+ * GATK VariantContext should be implemented in this class.
+ */
+private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = None) extends Serializable with Logging {
+  import VariantContextConverter._
+
+  initLogging()
+
+
 
   /**
    * Converts a single GATK variant into ADAMVariantContext(s).
@@ -150,7 +185,7 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       shared_genotype_builder.setVarIsFiltered(vc.isFiltered).setVarFilters(new util.ArrayList(vc.getFilters))
     } else if (vc.filtersWereApplied) // PASSing
       shared_genotype_builder.setVarIsFiltered(false)
-    shared_genotype_builder.setVarCallAnno(convertINFOAttributes(vc))
+    shared_genotype_builder.setVarCallAnno(convertAttributes(vc))
 
 
     // VCF Genotypes
@@ -159,6 +194,7 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       val genotype: ADAMGenotype.Builder = ADAMGenotype.newBuilder(shared_genotype)
         .setSampleId(g.getSampleName)
         .setAlleles(g.getAlleles.map(convertAllele(_)))
+        .setIsPhased(g.isPhased)
 
       if (g.hasGQ) genotype.setGtQuality(g.getGQ)
       if (g.hasDP) genotype.setReadDepth(g.getDP)
@@ -172,13 +208,14 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       } else
         genotype.setGtIsFiltered(false)
 
-      genotype.setIsPhased(g.isPhased)
-      if (g.hasExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY))
-        genotype.setPhaseQuality(g.getExtendedAttribute(VCFConstants.PHASE_QUALITY_KEY).asInstanceOf[Int])
-      if (g.hasExtendedAttribute(VCFConstants.PHASE_SET_KEY))
-        genotype.setPhaseSetId(g.getExtendedAttribute(VCFConstants.PHASE_SET_KEY).asInstanceOf[String])
-
-      genotype.build
+      val built_genotype = genotype.build
+      for ((v,a) <- VCF2GTAnnos) { // Add extended attributes if present
+        val attr = g.getExtendedAttribute(v)
+        if (attr != null && attr != VCFConstants.MISSING_VALUE_v4) {
+          built_genotype.put(a._1, a._2(attr))
+        }
+      }
+      built_genotype
     }).toSeq
 
     Seq(ADAMVariantContext(variant, genotypes = genotypes))

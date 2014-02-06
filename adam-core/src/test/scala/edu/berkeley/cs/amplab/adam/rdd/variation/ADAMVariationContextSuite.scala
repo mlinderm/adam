@@ -19,12 +19,32 @@ package edu.berkeley.cs.amplab.adam.rdd.variation
 import org.apache.spark.rdd.RDD
 import edu.berkeley.cs.amplab.adam.util.SparkFunSuite
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
+import edu.berkeley.cs.amplab.adam.rdd.variation.ADAMVariationContext._
+import com.google.common.io.Files
+import java.io.File
+import edu.berkeley.cs.amplab.adam.avro.{ADAMContig, ADAMVariant}
 
 class ADAMVariationContextSuite extends SparkFunSuite {
+  val tempDir = Files.createTempDir()
+
+  def variants: RDD[ADAMVariantContext] = {
+    val v0 = ADAMVariant.newBuilder
+      .setContig(ADAMContig.newBuilder.setContigName("chr11").build)
+      .setPosition(17409572)
+      .setReferenceAllele("T")
+      .setVariantAllele("C")
+      .build
+
+    sc.parallelize(List(
+      ADAMVariantContext(v0)
+    ))
+  }
+
+
   sparkTest("can read a small .vcf file") {
     val path = ClassLoader.getSystemClassLoader.getResource("small.vcf").getFile
-    // TODO: Why doesn't implict work here?
-    val vcs: RDD[ADAMVariantContext] = ADAMVariationContext.sparkContextToADAMVariationContext(sc).adamVCFLoad(path)
+
+    val vcs: RDD[ADAMVariantContext] = sc.adamVCFLoad(path)
     assert(vcs.count === 5)
 
     val vc = vcs.first
@@ -37,4 +57,9 @@ class ADAMVariationContextSuite extends SparkFunSuite {
     assert(gt.getVarCallAnno.getClippingRankSum === java.lang.Float.valueOf("0.138"))
   }
 
+  sparkTest("can write, then read in sites-only .vcf file") {
+    val path = new File(tempDir, "test.vcf")
+    sc.adamVCFSave(path.getAbsolutePath, variants)
+    assert(path.exists)
+  }
 }
