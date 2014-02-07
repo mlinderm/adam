@@ -22,7 +22,8 @@ import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 import edu.berkeley.cs.amplab.adam.rdd.variation.ADAMVariationContext._
 import com.google.common.io.Files
 import java.io.File
-import edu.berkeley.cs.amplab.adam.avro.{ADAMContig, ADAMVariant}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMGenotypeAllele, ADAMGenotype, ADAMContig, ADAMVariant}
+import scala.collection.JavaConversions._
 
 class ADAMVariationContextSuite extends SparkFunSuite {
   val tempDir = Files.createTempDir()
@@ -35,8 +36,13 @@ class ADAMVariationContextSuite extends SparkFunSuite {
       .setVariantAllele("C")
       .build
 
+    val g0 = ADAMGenotype.newBuilder().setVariant(v0)
+      .setSampleId("NA12878")
+      .setAlleles(List(ADAMGenotypeAllele.Ref, ADAMGenotypeAllele.Alt))
+      .build
+
     sc.parallelize(List(
-      ADAMVariantContext(v0)
+      ADAMVariantContext(v0, Seq(g0))
     ))
   }
 
@@ -57,7 +63,7 @@ class ADAMVariationContextSuite extends SparkFunSuite {
     assert(gt.getVarCallAnno.getClippingRankSum === java.lang.Float.valueOf("0.138"))
   }
 
-  sparkTest("can write, then read in sites-only .vcf file") {
+  sparkTest("can write, then read in .vcf file") {
     val path = new File(tempDir, "test.vcf")
     sc.adamVCFSave(path.getAbsolutePath, variants)
     assert(path.exists)

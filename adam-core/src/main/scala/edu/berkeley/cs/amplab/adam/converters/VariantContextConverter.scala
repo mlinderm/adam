@@ -76,6 +76,7 @@ object VariantContextConverter {
     AttrKey("readDepth", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY)),
     AttrKey("alleleDepths", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)),
     AttrKey("gtFilters", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY)),
+    AttrKey("genotypeLikelihoods", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_PL_KEY)),
     AttrKey("phaseQuality", attrAsInt _, new VCFFormatHeaderLine(VCFConstants.PHASE_QUALITY_KEY, 1, VCFHeaderLineType.Float, "Read-backed phasing quality")),
     AttrKey("phaseSetId", attrAsLong _, new VCFFormatHeaderLine(VCFConstants.PHASE_SET_KEY, 1, VCFHeaderLineType.Integer, "Phase set"))
   )
@@ -241,8 +242,8 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
         gb.AD(Array(g.getReadDepth, g.getAltReadDepth))
       if (g.getGtIsFiltered != null && g.getGtIsFiltered)
         gb.filters(g.getGtFilters.map(_.toString))
-
-      gb.PL(g.getGenotypeLikelihoods.map(p => p:Int).toArray)
+      if (g.getGenotypeLikelihoods.nonEmpty)
+        gb.PL(g.getGenotypeLikelihoods.map(p => p:Int).toArray)
 
       gb.make
     }))

@@ -24,7 +24,8 @@ import fi.tkk.ics.hadoop.bam._
 import org.apache.hadoop.io.LongWritable
 import edu.berkeley.cs.amplab.adam.avro.ADAMGenotype
 import org.apache.spark.SparkContext._
-import org.broadinstitute.variant.vcf.VCFHeader
+import org.broadinstitute.variant.vcf.{VCFHeaderLine, VCFHeader}
+import scala.collection.JavaConversions._
 
 
 object ADAMVariationContext {
@@ -34,16 +35,39 @@ object ADAMVariationContext {
   implicit def rddToADAMGenotypeRDD(rdd: RDD[ADAMGenotype]) = new ADAMGenotypeRDDFunctions(rdd)
 }
 
-private class ADAMVCFOutputFormat[K]() extends KeyIgnoringVCFOutputFormat[K](VCFFormat.VCF) {
-  { // TODO: This needs to be broken out in a static object so that we can set the samples
-    val hdr = new VCFHeader()
-    VariantContextConverter.infoHeaderLines.foreach(hdr.addMetaDataLine(_))
-    VariantContextConverter.formatHeaderLines.foreach(hdr.addMetaDataLine(_))
-    setHeader(hdr)
+
+private object ADAMVCFOutputFormat {
+  private var header : Option[VCFHeader] = None
+
+  def getHeader : VCFHeader = header match {
+    case Some(h) => h
+    case None => setHeader(Seq())
+  }
+
+  def setHeader(samples: Seq[String]) : VCFHeader = {
+    header = Some(new VCFHeader(
+      (VariantContextConverter.infoHeaderLines ++ VariantContextConverter.formatHeaderLines).toSet : Set[VCFHeaderLine],
+      samples
+    ))
+    header.get
   }
 }
 
+/**
+ * Wrapper for Hadoop-BAM to work around requirement for no-args constructor. Depends on
+ * ADAMVCFOutputFormat object to maintain global state (such as samples)
+ *
+ * @tparam K
+ */
+private class ADAMVCFOutputFormat[K] extends KeyIgnoringVCFOutputFormat[K](VCFFormat.VCF) {
+  setHeader(ADAMVCFOutputFormat.getHeader)
+}
+
+
+
 class ADAMVariationContext(sc: SparkContext) extends Serializable with Logging {
+  import ADAMVariationContext._
+
   initLogging()
 
   /**
@@ -65,13 +89,15 @@ class ADAMVariationContext(sc: SparkContext) extends Serializable with Logging {
 
   def adamVCFSave(filePath: String, variants: RDD[ADAMVariantContext], dict: Option[SequenceDictionary] = None) = {
     val vcfFormat = VCFFormat.inferFromFilePath(filePath)
-    assert(vcfFormat == VCFFormat.VCF, "BCF not yet supported")
+    assert(vcfFormat == VCFFormat.VCF, "BCF not yet supported") // TODO: Add BCF support
 
     log.info("Writing %s file to %s".format(vcfFormat, filePath))
 
-    val converter = new VariantContextConverter(dict)
+    // Initialize global header object required by Hadoop VCF Writer
+    ADAMVCFOutputFormat.setHeader(variants.sampleNames.collect)
 
     // TODO: Sort variants according to sequence dictionary (if supplied)
+    val converter = new VariantContextConverter(dict)
     val gatkVCs: RDD[VariantContextWritable] = variants.map(v => {
       val vcw = new VariantContextWritable
       vcw.set(converter.convert(v))
