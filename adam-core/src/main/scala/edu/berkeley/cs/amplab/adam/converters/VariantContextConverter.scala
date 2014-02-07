@@ -16,7 +16,6 @@
 package edu.berkeley.cs.amplab.adam.converters
 
 import scala.collection.JavaConversions._
-import org.apache.spark.Logging
 import org.broadinstitute.variant.variantcontext._
 import edu.berkeley.cs.amplab.adam.avro._
 import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ADAMVariantContext}
@@ -74,7 +73,7 @@ object VariantContextConverter {
   private val FORMAT_KEYS: Seq[AttrKey] = Seq(
     AttrKey("alleles", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY)),
     AttrKey("gtQuality", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY)),
-    AttrKey(null, null, VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY)),
+    AttrKey("readDepth", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY)),
     AttrKey("alleleDepths", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)),
     AttrKey("gtFilters", null, VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY)),
     AttrKey("phaseQuality", attrAsInt _, new VCFFormatHeaderLine(VCFConstants.PHASE_QUALITY_KEY, 1, VCFHeaderLineType.Float, "Read-backed phasing quality")),
@@ -89,9 +88,7 @@ object VariantContextConverter {
     field.vcfKey -> (avro_field.pos, field.attrConverter)
   })(collection.breakOut)
 
-  lazy val VCF2GTAnnos : Map[String,(Int,Object => Object)] = FORMAT_KEYS
-    .filter(attr => attr.adamKey != null && attr.attrConverter != null)
-    .map(field => {
+  lazy val VCF2GTAnnos : Map[String,(Int,Object => Object)] = FORMAT_KEYS.filter(_.attrConverter != null).map(field => {
       var avro_field = ADAMGenotype.getClassSchema.getField(field.adamKey)
       field.vcfKey -> (avro_field.pos, field.attrConverter)
     })(collection.breakOut)
@@ -141,12 +138,8 @@ object VariantContextConverter {
  * If an annotation has a corresponding set of fields in the VCF standard, a conversion to/from the
  * GATK VariantContext should be implemented in this class.
  */
-private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = None) extends Serializable with Logging {
+private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = None) extends Serializable {
   import VariantContextConverter._
-
-  initLogging()
-
-
 
   /**
    * Converts a single GATK variant into ADAMVariantContext(s).
@@ -200,13 +193,15 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       if (g.hasDP) genotype.setReadDepth(g.getDP)
       if (g.hasAD) {
         val ad = g.getAD
-        assert(ad.length == 2, "Unexpected number of allele depths for biallelic variant")
+        assert(ad.length == 2, "Unexpected number of allele depths for bi-allelic variant")
         genotype.setRefReadDepth(ad(0)).setAltReadDepth(ad(1))
       }
-      if (g.isFiltered) {
+      if (g.isFiltered)
         genotype.setGtIsFiltered(true).setGtFilters(g.getFilters.split(';').toList)
-      } else
+      else
         genotype.setGtIsFiltered(false)
+      if (g.hasPL) genotype.setGenotypeLikelihoods(g.getPL.toList.map(p => p:java.lang.Integer))
+
 
       val built_genotype = genotype.build
       for ((v,a) <- VCF2GTAnnos) { // Add extended attributes if present
@@ -238,6 +233,17 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
     // TODO: Extract provenance INFO fields
     vcb.genotypes(vc.genotypes.map(g => {
       val gb = new GenotypeBuilder(g.getSampleId.toString, convertAlleles(g))
+
+      Option(g.getIsPhased).foreach(gb.phased(_))
+      Option(g.getGtQuality).foreach(gb.GQ(_))
+      Option(g.getReadDepth).foreach(gb.DP(_))
+      if (g.getRefReadDepth != null && g.getAltReadDepth != null)
+        gb.AD(Array(g.getReadDepth, g.getAltReadDepth))
+      if (g.getGtIsFiltered != null && g.getGtIsFiltered)
+        gb.filters(g.getGtFilters.map(_.toString))
+
+      gb.PL(g.getGenotypeLikelihoods.map(p => p:Int).toArray)
+
       gb.make
     }))
 
