@@ -38,10 +38,10 @@ class RichADAMVariant(val variant: ADAMVariant) {
 
   override def equals(o: Any) = o match {
     case that: RichADAMVariant => {
-      variant.getPosition        == that.variant.getPosition  &&
+      variant.getPosition == that.variant.getPosition  &&
       isSameContig(variant.getContig, that.variant.getContig) &&
       variant.getReferenceAllele == that.variant.getReferenceAllele &&
-      variant.getVariantAllele   == that.variant.getVariantAllele
+      variant.getVariantAllele == that.variant.getVariantAllele
     }
     case _ => false
   }

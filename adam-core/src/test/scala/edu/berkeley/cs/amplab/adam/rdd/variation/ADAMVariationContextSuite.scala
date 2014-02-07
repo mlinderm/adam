@@ -25,6 +25,7 @@ import java.io.File
 import edu.berkeley.cs.amplab.adam.avro.{ADAMGenotypeAllele, ADAMGenotype, ADAMContig, ADAMVariant}
 import scala.collection.JavaConversions._
 
+
 class ADAMVariationContextSuite extends SparkFunSuite {
   val tempDir = Files.createTempDir()
 
@@ -57,10 +58,11 @@ class ADAMVariationContextSuite extends SparkFunSuite {
     assert(vc.genotypes.length === 3)
 
     val gt = vc.genotypes.head
-    assert(gt.getVarCallAnno != null)
-    assert(gt.getVarCallAnno.getReadDepth === 69)
-    // Recall we are testing parsing, so we assert that our value is the same as should have been parsed
-    assert(gt.getVarCallAnno.getClippingRankSum === java.lang.Float.valueOf("0.138"))
+    assert(gt.getVariantCallingAnnotations != null)
+    assert(gt.getVariantCallingAnnotations.getReadDepth === 69)
+    // Recall we are testing parsing, so we assert that our value is
+    // the same as should have been parsed
+    assert(gt.getVariantCallingAnnotations.getClippingRankSum === java.lang.Float.valueOf("0.138"))
   }
 
   sparkTest("can write, then read in .vcf file") {

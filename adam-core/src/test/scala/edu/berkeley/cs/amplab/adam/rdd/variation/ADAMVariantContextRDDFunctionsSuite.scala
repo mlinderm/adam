@@ -21,6 +21,8 @@ import edu.berkeley.cs.amplab.adam.avro._
 import org.apache.spark.rdd.RDD
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
 import edu.berkeley.cs.amplab.adam.rdd.variation.ADAMVariationContext._
+import scala.collection.JavaConverters._
+import edu.berkeley.cs.amplab.adam.avro.Base
 
 class ADAMVariantContextRDDFunctionsSuite extends SparkFunSuite {
 

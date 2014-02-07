@@ -16,16 +16,17 @@
 
 package edu.berkeley.cs.amplab.adam.predicates
 
+import com.google.common.io.Files
+import edu.berkeley.cs.amplab.adam.avro.{ADAMContig, ADAMVariant, ADAMGenotype}
+import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 import edu.berkeley.cs.amplab.adam.util.{ParquetLogger, SparkFunSuite}
-import org.scalatest.BeforeAndAfter
 import java.util.logging.Level
 import java.io.File
-import edu.berkeley.cs.amplab.adam.avro.{ADAMContig, ADAMVariant, ADAMGenotype}
-import org.apache.spark.rdd.RDD
-import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
-import com.google.common.io.Files
+import org.scalatest.BeforeAndAfter
 import org.apache.commons.io.FileUtils
-
+import org.apache.spark.rdd.RDD
+import scala.collection.JavaConverters._
+import edu.berkeley.cs.amplab.adam.avro.Base
 
 class GenotypePredicatesSuite extends SparkFunSuite with BeforeAndAfter {
   var genotypesParquetFile: File   = null

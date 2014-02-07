@@ -20,6 +20,8 @@ import org.broadinstitute.variant.variantcontext._
 import edu.berkeley.cs.amplab.adam.avro._
 import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ADAMVariantContext}
 import org.broadinstitute.variant.vcf._
+import edu.berkeley.cs.amplab.adam.util.VcfStringUtils._
+import org.broadinstitute.variant.vcf.VCFConstants
 import java.util
 
 object VariantContextConverter {
@@ -174,12 +176,17 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       .setVariant(variant)
 
     // VCF QUAL, FILTER and INFO fields
-    if (vc.hasLog10PError) shared_genotype_builder.setVarProbError(vc.getPhredScaledQual.asInstanceOf[Float])
+    if (vc.hasLog10PError) {
+      shared_genotype_builder.setVarProbError(vc.getPhredScaledQual.asInstanceOf[Float])
+    }
+
     if (vc.isFiltered) { // not PASSing
-      shared_genotype_builder.setVarIsFiltered(vc.isFiltered).setVarFilters(new util.ArrayList(vc.getFilters))
-    } else if (vc.filtersWereApplied) // PASSing
+      shared_genotype_builder.setVarIsFiltered(vc.isFiltered).setVarFilters(
+        new util.ArrayList(vc.getFilters))
+    } else if (vc.filtersWereApplied) { // PASSing
       shared_genotype_builder.setVarIsFiltered(false)
-    shared_genotype_builder.setVarCallAnno(convertAttributes(vc))
+    }
+    shared_genotype_builder.setVariantCallingAnnotations(convertAttributes(vc))
 
 
     // VCF Genotypes
@@ -190,12 +197,12 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
         .setAlleles(g.getAlleles.map(convertAllele(_)))
         .setIsPhased(g.isPhased)
 
-      if (g.hasGQ) genotype.setGtQuality(g.getGQ)
+      if (g.hasGQ) genotype.setGenotypeQuality(g.getGQ)
       if (g.hasDP) genotype.setReadDepth(g.getDP)
       if (g.hasAD) {
         val ad = g.getAD
         assert(ad.length == 2, "Unexpected number of allele depths for bi-allelic variant")
-        genotype.setRefReadDepth(ad(0)).setAltReadDepth(ad(1))
+        genotype.setReferenceReadDepth(ad(0)).setAlternateReadDepth(ad(1))
       }
       if (g.isFiltered)
         genotype.setGtIsFiltered(true).setGtFilters(g.getFilters.split(';').toList)
@@ -236,10 +243,10 @@ private[adam] class VariantContextConverter(dict: Option[SequenceDictionary] = N
       val gb = new GenotypeBuilder(g.getSampleId.toString, convertAlleles(g))
 
       Option(g.getIsPhased).foreach(gb.phased(_))
-      Option(g.getGtQuality).foreach(gb.GQ(_))
+      Option(g.getGenotypeQuality).foreach(gb.GQ(_))
       Option(g.getReadDepth).foreach(gb.DP(_))
-      if (g.getRefReadDepth != null && g.getAltReadDepth != null)
-        gb.AD(Array(g.getReadDepth, g.getAltReadDepth))
+      if (g.getReferenceReadDepth != null && g.getAlternateReadDepth != null)
+        gb.AD(Array(g.getReferenceReadDepth, g.getAlternateReadDepth))
       if (g.getGtIsFiltered != null && g.getGtIsFiltered)
         gb.filters(g.getGtFilters.map(_.toString))
       if (g.getGenotypeLikelihoods.nonEmpty)
