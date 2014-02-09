@@ -45,7 +45,6 @@ class ADAMVariantContextRDDFunctionsSuite extends SparkFunSuite {
       a0
     ))
 
-    // TODO: implicit conversion to ADAMVariantContextRDD
     val annotated = vc.joinDatabaseVariantAnnotation(vda)
     println("nealsid: " + annotated.count())
     println("nealsid: " + annotated.first.databases.isDefined)
