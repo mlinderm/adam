@@ -17,8 +17,7 @@
 package edu.berkeley.cs.amplab.adam.rich
 
 import org.scalatest.FunSuite
-import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMContig, Base}
-import scala.collection.JavaConverters._
+import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMContig}
 
 class RichADAMVariantSuite extends FunSuite {
   test("Equality without reference MD5") {
