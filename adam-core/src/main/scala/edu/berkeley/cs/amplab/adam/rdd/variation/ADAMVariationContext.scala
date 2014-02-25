@@ -24,12 +24,14 @@ import edu.berkeley.cs.amplab.adam.converters.VariantContextConverter
 import fi.tkk.ics.hadoop.bam.{VariantContextWritable, VCFInputFormat}
 import org.apache.hadoop.io.LongWritable
 import parquet.hadoop.util.ContextUtil
+import edu.berkeley.cs.amplab.adam.avro.ADAMGenotype
 
 
 object ADAMVariationContext {
   implicit def sparkContextToADAMVariationContext(sc: SparkContext): ADAMVariationContext = new ADAMVariationContext(sc)
 
   implicit def rddToADAMVariantContextRDD(rdd: RDD[ADAMVariantContext]) = new ADAMVariantContextRDDFunctions(rdd)
+  implicit def rddToADAMGenotypeRDD(rdd: RDD[ADAMGenotype]) = new ADAMGenotypeRDDFunctions(rdd)
 }
 
 class ADAMVariationContext(sc: SparkContext) extends Serializable with Logging {

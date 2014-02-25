@@ -48,7 +48,7 @@ class ADAMGenotypeRDDFunctionsSuite extends SparkFunSuite {
 
     val g2 = gb.setAlleles(List(ADAMGenotypeAllele.Ref, ADAMGenotypeAllele.Ref)).build
     val table1 = sc.parallelize(Seq(g0))
-      .concordanceWith(sc.parallelize(Seq(g2))).collectAsMap()
+      .concordanceWith(sc.parallelize(Seq(g2))).collectAsMap
       .getOrElse("NA12878", ConcordanceTable())
     assert(table1.total() === 1)
     assert(table1.get(GenotypeType.HET, GenotypeType.HOM_REF) === 1)
